@@ -1,3 +1,5 @@
+@file:OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class, kotlinx.coroutines.DelicateCoroutinesApi::class)
+
 package com.bajingjowo.esurat.ui
 
 import android.app.Application
@@ -257,6 +259,7 @@ class VillageViewModel(
     companion object {
         fun provideFactory(application: Application): ViewModelProvider.Factory {
             return object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
                     val db = AppDatabase.getDatabase(application, kotlinx.coroutines.GlobalScope)
                     val repo = VillageRepository(
