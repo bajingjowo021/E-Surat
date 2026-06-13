@@ -1,0 +1,26 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Golden stamp circle overlay -->
+    <path
+        android:fillColor="#FFC107"
+        android:pathData="M54,14 A40,40 0 1 1 53.99,14 Z" />
+    <!-- White secondary badge inlay -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,20 A34,34 0 1 1 53.99,20 Z" />
+    <!-- Teal official folder doc -->
+    <path
+        android:fillColor="#136F63"
+        android:pathData="M36,36 H60 L72,48 V72 H36 Z" />
+    <!-- Golden fold aspect -->
+    <path
+        android:fillColor="#FFC107"
+        android:pathData="M60,36 V48 H72 Z" />
+    <!-- White e-Signature Verification Checkmark check -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M45,56 L51,62 L63,48 L67,52 L51,68 L41,60 Z" />
+</vector>
