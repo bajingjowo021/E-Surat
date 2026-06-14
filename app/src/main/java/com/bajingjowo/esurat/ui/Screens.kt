@@ -1216,6 +1216,8 @@ fun DraftKkScreen(viewModel: VillageViewModel) {
     val villagers by viewModel.villagersState.collectAsState()
     val DistinctKks = villagers.distinctBy { it.noKk }
     var selectedKkNo by remember { mutableStateOf("") }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val settings by viewModel.settingsState.collectAsState()
     
     // Choose active KK
     if (selectedKkNo.isBlank() && DistinctKks.isNotEmpty()) {
@@ -1362,6 +1364,26 @@ fun DraftKkScreen(viewModel: VillageViewModel) {
                             }
                         }
                     }
+                }
+            }
+            
+            item {
+                Button(
+                    onClick = {
+                        printKkAsPdf(context, selectedKkNo, currentKkMembers, settings)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                        .testTag("print_draft_kk_btn"),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Send,
+                        contentDescription = "Cetak Draft KK"
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Cetak Draft KK Resmi", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
             }
         }
@@ -2204,16 +2226,8 @@ fun printSuratAsPdf(
                 <table class="sig-table">
                     <tr>
                         <td class="sig-cell">
-                            <div class="sig-desc">
-                                <strong>Dokumen TTE Resmi Aktif:</strong><br>
-                                Surat keterangan diterbitkan melalui sinkronisasi SIAK Dindukcapil Rembang, terverifikasi aman menggunakan sertifikat tanda tangan elektronik aktif dari BSrE.<br>
-                                <div style="display: flex; gap: 8px; margin-top: 8px; align-items: center;">
-                                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${java.net.URLEncoder.encode(item.qrVerificationUrl, "UTF-8")}" style="width: 64px; height: 64px; background: white; border: 1px solid #ccc; padding: 2px;" alt="QR Verification" />
-                                    <div>
-                                        Tautan portal verifikasi resmi:<br>
-                                        <a href="${item.qrVerificationUrl}" style="font-family: monospace; font-size: 7.5px; color: #1565c0; text-decoration: underline; word-break: break-all;">${item.qrVerificationUrl}</a>
-                                    </div>
-                                </div>
+                            <div style="text-align: left; padding: 5px;">
+                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${java.net.URLEncoder.encode(item.qrVerificationUrl, "UTF-8")}" style="width: 80px; height: 80px; background: white; border: 1px solid #000; padding: 2px; display: inline-block;" alt="QR Verification" />
                             </div>
                         </td>
                         <td class="sig-cell sig-right">
@@ -2241,6 +2255,302 @@ fun printSuratAsPdf(
         override fun onPageFinished(view: android.webkit.WebView?, url: String?) {
             val printManager = context.getSystemService(android.content.Context.PRINT_SERVICE) as android.print.PrintManager
             val jobName = "eSuratDesa_${item.nomorSurat.replace('/', '_')}"
+            val printAdapter = webView.createPrintDocumentAdapter(jobName)
+            val printAttributes = android.print.PrintAttributes.Builder()
+                .setMediaSize(android.print.PrintAttributes.MediaSize.ISO_A4)
+                .build()
+            printManager.print(jobName, printAdapter, printAttributes)
+        }
+    }
+    webView.loadDataWithBaseURL(null, htmlContent, "text/html", "UTF-8", null)
+}
+
+// PDF Print helper function specifically styled as authentic Kartu Keluarga with diagonal DRAFT watermark
+fun printKkAsPdf(
+    context: android.content.Context,
+    kkNo: String,
+    members: List<com.bajingjowo.esurat.data.Villager>,
+    settings: com.bajingjowo.esurat.data.VillageSettings
+) {
+    val headOfFamily = members.find { it.hubunganKeluarga.equals("Kepala Keluarga", ignoreCase = true) } ?: members.firstOrNull()
+    val firstMember = members.firstOrNull()
+    
+    val htmlContent = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <style>
+                @page {
+                    size: A4 landscape;
+                    margin: 15mm 15mm 15mm 15mm;
+                }
+                body {
+                    font-family: Arial, sans-serif;
+                    margin: 0;
+                    color: #000;
+                    background-color: #fff;
+                    line-height: 1.25;
+                }
+                .watermark {
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%) rotate(-25deg);
+                    font-size: 85px;
+                    font-weight: 900;
+                    color: rgba(220, 0, 0, 0.14);
+                    font-family: Arial, sans-serif;
+                    letter-spacing: 12px;
+                    z-index: 9999;
+                    pointer-events: none;
+                    white-space: nowrap;
+                    text-transform: uppercase;
+                }
+                .watermark-sub {
+                    font-size: 30px;
+                    display: block;
+                    letter-spacing: 4px;
+                    text-align: center;
+                    margin-top: 10px;
+                }
+                .kk-header {
+                    text-align: center;
+                    margin-bottom: 12px;
+                }
+                .kk-header h1 {
+                    margin: 0;
+                    font-size: 20px;
+                    font-weight: bold;
+                    letter-spacing: 1.5px;
+                    text-transform: uppercase;
+                    color: #0d47a1;
+                }
+                .kk-header h2 {
+                    margin: 3px 0 0 0;
+                    font-size: 14px;
+                    font-weight: bold;
+                    font-family: monospace;
+                    letter-spacing: 1px;
+                }
+                .meta-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    font-size: 10.5px;
+                    margin-bottom: 10px;
+                }
+                .meta-table td {
+                    padding: 3px 0;
+                }
+                .kk-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    font-size: 9.5px;
+                    margin-bottom: 12px;
+                }
+                .kk-table th {
+                    border: 1px solid #000;
+                    background-color: #e3f2fd;
+                    color: #000;
+                    font-weight: bold;
+                    text-align: center;
+                    padding: 4px 2px;
+                    font-size: 9px;
+                }
+                .kk-table td {
+                    border: 1px solid #000;
+                    padding: 4px;
+                    vertical-align: middle;
+                }
+                .col-num-row th {
+                    background-color: #eceff1;
+                    font-size: 7.5px;
+                    padding: 1px;
+                }
+                .footer-section {
+                    margin-top: 15px;
+                    width: 100%;
+                    page-break-inside: avoid;
+                }
+                .footer-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    font-size: 10.5px;
+                }
+                .footer-table td {
+                    vertical-align: top;
+                }
+                .sig-box {
+                    text-align: center;
+                }
+                .sig-title {
+                    font-weight: normal;
+                    margin-bottom: 45px;
+                }
+                .sig-name {
+                    font-weight: bold;
+                    text-decoration: underline;
+                    text-transform: uppercase;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="watermark">
+                DRAFT KK DIGITAL
+                <span class="watermark-sub">BELUM DISETUJUI DUKCAPIL</span>
+            </div>
+            
+            <div class="kk-header">
+                <h1>REPUBLIK INDONESIA</h1>
+                <h1>KARTU KELUARGA</h1>
+                <h2>No. $kkNo</h2>
+            </div>
+            
+            <table class="meta-table">
+                <tr>
+                    <td style="width: 15%;">Nama Kepala Keluarga</td>
+                    <td style="width: 35%;">: <strong>${headOfFamily?.namaLengkap?.uppercase() ?: "-"}</strong></td>
+                    <td style="width: 15%;">Kecamatan</td>
+                    <td style="width: 35%;">: ${settings.kecamatan.uppercase()}</td>
+                </tr>
+                <tr>
+                    <td>Alamat</td>
+                    <td>: ${settings.alamat}</td>
+                    <td>Kabupaten/Kota</td>
+                    <td>: REMBANG</td>
+                </tr>
+                <tr>
+                    <td>RT/RW</td>
+                    <td>: ${firstMember?.rt ?: "01"}/${firstMember?.rw ?: "01"}</td>
+                    <td>Kode Pos</td>
+                    <td>: ${settings.kodePos}</td>
+                </tr>
+                <tr>
+                    <td>Kelurahan/Desa</td>
+                    <td>: ${settings.namaDesa.uppercase()}</td>
+                    <td>Provinsi</td>
+                    <td>: JAWA TENGAH</td>
+                </tr>
+            </table>
+
+            <table class="kk-table">
+                <thead>
+                    <tr>
+                        <th style="width: 3%;">No</th>
+                        <th style="width: 25%;">Nama Lengkap</th>
+                        <th style="width: 16%;">NIK</th>
+                        <th style="width: 8%;">Jenis Kelamin</th>
+                        <th style="width: 13%;">Tempat Lahir</th>
+                        <th style="width: 10%;">Tanggal Lahir</th>
+                        <th style="width: 8%;">Agama</th>
+                        <th style="width: 10%;">Pendidikan</th>
+                        <th style="width: 10%;">Jenis Pekerjaan</th>
+                    </tr>
+                    <tr class="col-num-row">
+                        <th></th>
+                        <th>(1)</th>
+                        <th>(2)</th>
+                        <th>(3)</th>
+                        <th>(4)</th>
+                        <th>(5)</th>
+                        <th>(6)</th>
+                        <th>(7)</th>
+                        <th>(8)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${members.mapIndexed { index, m -> """
+                    <tr>
+                        <td style="text-align: center;">${index + 1}</td>
+                        <td><strong>${m.namaLengkap.uppercase()}</strong></td>
+                        <td style="text-align: center; font-family: monospace;">${m.nik}</td>
+                        <td style="text-align: center;">${m.jenisKelamin.uppercase()}</td>
+                        <td>${m.tempatLahir.uppercase()}</td>
+                        <td style="text-align: center;">${m.tanggalLahir}</td>
+                        <td style="text-align: center;">${m.agama.uppercase()}</td>
+                        <td>${m.pendidikan.uppercase()}</td>
+                        <td>${m.pekerjaan.uppercase()}</td>
+                    </tr>
+                    """ }.joinToString("")}
+                </tbody>
+            </table>
+
+            <table class="kk-table">
+                <thead>
+                    <tr>
+                        <th style="width: 3%;">No</th>
+                        <th style="width: 18%;">Status Hubungan Keluarga</th>
+                        <th style="width: 14%;">Status Perkawinan</th>
+                        <th style="width: 12%;">Kewarganegaraan</th>
+                        <th style="width: 13%;">No. Paspor</th>
+                        <th style="width: 12%;">No. KITAP/KITAS</th>
+                        <th style="width: 14%;">Nama Ayah</th>
+                        <th style="width: 14%;">Nama Ibu</th>
+                    </tr>
+                    <tr class="col-num-row">
+                        <th></th>
+                        <th>(9)</th>
+                        <th>(10)</th>
+                        <th>(11)</th>
+                        <th>(12)</th>
+                        <th>(13)</th>
+                        <th>(14)</th>
+                        <th>(15)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${members.mapIndexed { index, m -> """
+                    <tr>
+                        <td style="text-align: center;">${index + 1}</td>
+                        <td style="text-align: center;">${m.hubunganKeluarga.uppercase()}</td>
+                        <td style="text-align: center;">${m.statusPerkawinan.uppercase()}</td>
+                        <td style="text-align: center;">${m.kewarganegaraan.uppercase()}</td>
+                        <td style="text-align: center;">-</td>
+                        <td style="text-align: center;">-</td>
+                        <td>${m.namaAyah.uppercase()}</td>
+                        <td>${m.namaIbu.uppercase()}</td>
+                    </tr>
+                    """ }.joinToString("")}
+                </tbody>
+            </table>
+
+            <div class="footer-section">
+                <table class="footer-table">
+                    <tr>
+                        <td style="width: 33%;">
+                            <div class="sig-box">
+                                KEPALA KELUARGA,<br><br><br><br><br>
+                                <span class="sig-name">${headOfFamily?.namaLengkap?.uppercase() ?: "-"}</span>
+                            </div>
+                        </td>
+                        <td style="width: 34%; text-align: center; padding-top: 10px;">
+                            <div style="display: inline-block; border: 1px solid #777; padding: 6px; background: #fafafa; border-radius: 4px;">
+                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://rembangkab.go.id/kk-verify/$kkNo" style="width: 60px; height: 60px; display: block; margin: 0 auto 4px auto;" alt="Verification QR" />
+                                <span style="font-size: 7px; font-weight: bold; font-family: sans-serif; display: block; text-transform: uppercase;">VERIFIKASI SIAK OFFICIAL</span>
+                            </div>
+                        </td>
+                        <td style="width: 33%;">
+                            <div class="sig-box">
+                                REMBANG, ${java.text.SimpleDateFormat("dd MMMM yyyy", java.util.Locale("id", "ID")).format(java.util.Date())}<br>
+                                KEPALA DINAS KEPENDUDUKAN DAN<br>
+                                PENCATATAN SIPIL KABUPATEN REMBANG<br><br>
+                                <div style="font-weight: bold; color: #1b5e20; font-size: 8px; border: 1.5px solid #1b5e20; padding: 2px 6px; display: inline-block; margin-bottom: 12px; background-color: #f1f8e9; border-radius: 3px;">TANDATANGAN ELEKTRONIK BSrE</div><br>
+                                <span class="sig-name">Drs. SUPARMIN, M.M.</span><br>
+                                <span style="font-size: 9px; color: #333;">NIP. 19680324 199303 1 005</span>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </body>
+        </html>
+    """.trimIndent()
+
+    val webView = android.webkit.WebView(context)
+    webView.webViewClient = object : android.webkit.WebViewClient() {
+        override fun onPageFinished(view: android.webkit.WebView?, url: String?) {
+            val printManager = context.getSystemService(android.content.Context.PRINT_SERVICE) as android.print.PrintManager
+            val jobName = "eDraftKK_$kkNo"
             val printAdapter = webView.createPrintDocumentAdapter(jobName)
             val printAttributes = android.print.PrintAttributes.Builder()
                 .setMediaSize(android.print.PrintAttributes.MediaSize.ISO_A4)
