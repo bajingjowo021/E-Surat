@@ -2,17 +2,30 @@ package com.bajingjowo.esurat.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val VillageTeal = Color(0xFF136F63)
-val VillageNavy = Color(0xFF0F2C59)
-val VillageGreen = Color(0xFF2E7D32)
-val VillageAccent = Color(0xFFDF5E5E)
+// Premium SaaS Color Palette for e-Surat 2026
+val PrimaryBlue = Color(0xFF2563EB)
+val SecondaryGreen = Color(0xFF10B981)
+val AccentOrange = Color(0xFFF59E0B)
 
-val SlateLightBg = Color(0xFFF7F9FC)
-val SlateDarkBg = Color(0xFF0F172A)
+val SlateLightBg = Color(0xFFF8FAFC) // Sleek slate 50 light background
+val SlateDarkBg = Color(0xFF0F172A)  // Slate 900 premium dark mode background
 
-val CardDarkBg = Color(0xFF1E293B)
 val CardLightBg = Color(0xFFFFFFFF)
+val CardDarkBg = Color(0xFF1E293B)   // Slate 800 for dark mode cards
 
-val GoldAccent = Color(0xFFFFB300)
-val VerifyGreen = Color(0xFF388E3C)
-val VerifyRed = Color(0xFFD32F2F)
+val TextLightPrimary = Color(0xFF0F172A)
+val TextLightSecondary = Color(0xFF475569)
+val TextDarkPrimary = Color(0xFFF8FAFC)
+val TextDarkSecondary = Color(0xFF94A3B8)
+
+val BorderLight = Color(0xFFE2E8F0)
+val BorderDark = Color(0xFF334155)
+
+val SuccessGreen = Color(0xFF10B981)
+val ErrorRed = Color(0xFFEF4444)
+val InfoBlue = Color(0xFF3B82F6)
+
+// Compatibility aliases for verified states
+val VerifyGreen = SuccessGreen
+val VerifyRed = ErrorRed
+

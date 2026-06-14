@@ -12,8 +12,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -28,8 +32,10 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -38,6 +44,7 @@ import com.bajingjowo.esurat.data.SuratHistory
 import com.bajingjowo.esurat.data.SyncStatus
 import com.bajingjowo.esurat.data.Villager
 import com.bajingjowo.esurat.ui.theme.*
+import kotlinx.coroutines.launch
 
 // Simple representing destinations
 enum class Screen(val title: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
@@ -59,107 +66,320 @@ fun AppNavigationScaffold(
     val syncState by viewModel.syncState.collectAsState()
     val settings by viewModel.settingsState.collectAsState()
 
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+
+    var showHelpDialog by remember { mutableStateOf(false) }
+    var showAboutDialog by remember { mutableStateOf(false) }
+    var showNotifAlert by remember { mutableStateOf(false) }
+
     // Screen navigation layout adaptive selection (Drawer rail on wide, bottom navigation bar on mobile screen)
-    BoxWithConstraints(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        val isWideScreen = maxWidth > 600.dp
-
-        Row(modifier = Modifier.fillMaxSize()) {
-            if (isWideScreen) {
-                // Draw elegant sidebar
-                NavigationRail(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    modifier = Modifier.width(100.dp).fillMaxHeight()
-                ) {
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Box(
-                        modifier = Modifier
-                            .size(54.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Send, 
-                            contentDescription = "App Logo",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(32.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.weight(1f))
-                    Screen.values().forEach { screen ->
-                        NavigationRailItem(
-                            selected = currentScreen == screen,
-                            onClick = { currentScreen = screen },
-                            icon = { Icon(screen.icon, contentDescription = screen.title) },
-                            colors = NavigationRailItemDefaults.colors(
-                                selectedIconColor = MaterialTheme.colorScheme.primary,
-                                unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                            )
-                        )
-                    }
-                    Spacer(modifier = Modifier.weight(1f))
-                }
-                VerticalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
-            }
-
-            // Main Content Area
-            Scaffold(
-                bottomBar = {
-                    if (!isWideScreen) {
-                        NavigationBar(
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            tonalElevation = 8.dp
-                        ) {
-                            Screen.values().forEach { screen ->
-                                NavigationBarItem(
-                                    selected = currentScreen == screen,
-                                    onClick = { currentScreen = screen },
-                                    icon = { Icon(screen.icon, contentDescription = screen.title) },
-                                    alwaysShowLabel = false,
-                                    modifier = Modifier.testTag("nav_tab_${screen.name.lowercase()}"),
-                                    colors = NavigationBarItemDefaults.colors(
-                                        selectedIconColor = MaterialTheme.colorScheme.primary,
-                                        selectedTextColor = MaterialTheme.colorScheme.primary,
-                                        unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                                    )
-                                )
-                            }
-                        }
-                    }
-                },
-                contentWindowInsets = WindowInsets.safeDrawing
-            ) { innerPadding ->
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet(
+                drawerContainerColor = MaterialTheme.colorScheme.surface,
+                drawerTonalElevation = 4.dp,
+                modifier = Modifier.width(300.dp)
+            ) {
+                // Gradient Header Visual
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding)
+                        .fillMaxWidth()
+                        .height(160.dp)
+                        .background(
+                            androidx.compose.ui.graphics.Brush.horizontalGradient(
+                                colors = listOf(PrimaryBlue, SecondaryGreen)
+                            )
+                        )
+                        .padding(20.dp),
+                    contentAlignment = Alignment.BottomStart
                 ) {
-                    AnimatedContent(
-                        targetState = currentScreen,
-                        transitionSpec = {
-                            fadeIn() togetherWith fadeOut()
-                        },
-                        label = "ScreenTransition"
-                    ) { target ->
-                        when (target) {
-                            Screen.Dashboard -> DashboardScreen(viewModel, onNavigate = { currentScreen = it })
-                            Screen.Penduduk -> VillagersScreen(viewModel)
-                            Screen.Surat -> CreateLetterScreen(viewModel)
-                            Screen.AIAgent -> AiAgentScreen(viewModel)
-                            Screen.DraftKK -> DraftKkScreen(viewModel)
-                            Screen.Riwayat -> HistoryLettersScreen(viewModel)
-                            Screen.Pengaturan -> SettingsScreen(viewModel)
-                        }
+                    Column {
+                        Icon(
+                            imageVector = Icons.Default.Send,
+                            contentDescription = "Logo",
+                            tint = Color.White,
+                            modifier = Modifier.size(36.dp)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "e-Surat Desa Digital",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = "Kabupaten Rembang • Versi 2026.1",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = 0.8f)
+                        )
                     }
+                }
 
-                    // Global Top Sync Alert toast overlay if triggering syncing state
-                    SyncIndicatorOverlay(
-                        syncState = syncState,
-                        onDismiss = { viewModel.triggerSync() }
-                    )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Drawer Items
+                NavigationDrawerItem(
+                    label = { Text("Petunjuk Sistem (Panduan)", fontWeight = FontWeight.Bold) },
+                    selected = false,
+                    onClick = {
+                        scope.launch { drawerState.close() }
+                        showHelpDialog = true
+                    },
+                    icon = { Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
+
+                NavigationDrawerItem(
+                    label = { Text("Sinkronisasi Firebase Cloud", fontWeight = FontWeight.Bold) },
+                    selected = false,
+                    onClick = {
+                        scope.launch { drawerState.close() }
+                        viewModel.triggerSync()
+                    },
+                    icon = { Icon(Icons.Default.Refresh, contentDescription = null, tint = MaterialTheme.colorScheme.secondary) },
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                )
+
+                NavigationDrawerItem(
+                    label = { Text("Identitas Desa & KOP", fontWeight = FontWeight.Bold) },
+                    selected = currentScreen == Screen.Pengaturan,
+                    onClick = {
+                        scope.launch { drawerState.close() }
+                        currentScreen = Screen.Pengaturan
+                    },
+                    icon = { Icon(Icons.Default.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                    modifier = Modifier.padding(horizontal = 12.dp)
+                )
+
+                NavigationDrawerItem(
+                    label = { Text("Tentang Aplikasi e-Surat", fontWeight = FontWeight.Bold) },
+                    selected = false,
+                    onClick = {
+                        scope.launch { drawerState.close() }
+                        showAboutDialog = true
+                    },
+                    icon = { Icon(Icons.Default.Star, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                )
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                // Bottom Footer in Drawer
+                Text(
+                    text = "Layanan Terintegrasi SIAK & BSrE",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(bottom = 24.dp)
+                )
+            }
+        }
+    ) {
+        BoxWithConstraints(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+            val isWideScreen = maxWidth > 600.dp
+
+            Row(modifier = Modifier.fillMaxSize()) {
+                if (isWideScreen) {
+                    // Draw elegant sidebar
+                    NavigationRail(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        modifier = Modifier.width(100.dp).fillMaxHeight()
+                    ) {
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(54.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Send, 
+                                contentDescription = "App Logo",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.weight(1f))
+                        Screen.values().forEach { screen ->
+                            NavigationRailItem(
+                                selected = currentScreen == screen,
+                                onClick = { currentScreen = screen },
+                                icon = { Icon(screen.icon, contentDescription = screen.title) },
+                                colors = NavigationRailItemDefaults.colors(
+                                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                                    unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                )
+                            )
+                        }
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                    VerticalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                }
+
+                // Main Content Area
+                Scaffold(
+                    topBar = {
+                        // Premium Top Bar
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(64.dp)
+                                .background(MaterialTheme.colorScheme.surface)
+                                .padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                                    Icon(Icons.Default.Menu, contentDescription = "Open Drawer", tint = MaterialTheme.colorScheme.primary)
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = currentScreen.title, 
+                                        style = MaterialTheme.typography.titleMedium, 
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "Kabupaten Rembang • Desa ${settings.namaDesa}", 
+                                        style = MaterialTheme.typography.bodySmall, 
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(onClick = { viewModel.triggerSync() }) {
+                                    Icon(Icons.Default.Refresh, contentDescription = "Sync", tint = MaterialTheme.colorScheme.primary)
+                                }
+                                Spacer(modifier = Modifier.width(4.dp))
+                                IconButton(onClick = { showNotifAlert = true }) {
+                                    Box {
+                                        Icon(Icons.Default.Notifications, contentDescription = "Notifications", tint = MaterialTheme.colorScheme.primary)
+                                        Box(
+                                            modifier = Modifier
+                                                .size(8.dp)
+                                                .clip(CircleShape)
+                                                .background(Color.Red)
+                                                .align(Alignment.TopEnd)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    bottomBar = {
+                        if (!isWideScreen) {
+                            NavigationBar(
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                tonalElevation = 8.dp
+                            ) {
+                                Screen.values().forEach { screen ->
+                                    NavigationBarItem(
+                                        selected = currentScreen == screen,
+                                        onClick = { currentScreen = screen },
+                                        icon = { Icon(screen.icon, contentDescription = screen.title) },
+                                        alwaysShowLabel = false,
+                                        modifier = Modifier.testTag("nav_tab_${screen.name.lowercase()}"),
+                                        colors = NavigationBarItemDefaults.colors(
+                                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                                            unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    contentWindowInsets = WindowInsets.safeDrawing
+                ) { innerPadding ->
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding)
+                    ) {
+                        AnimatedContent(
+                            targetState = currentScreen,
+                            transitionSpec = {
+                                fadeIn() togetherWith fadeOut()
+                            },
+                            label = "ScreenTransition"
+                        ) { target ->
+                            when (target) {
+                                Screen.Dashboard -> DashboardScreen(viewModel, onNavigate = { currentScreen = it })
+                                Screen.Penduduk -> VillagersScreen(viewModel)
+                                Screen.Surat -> CreateLetterScreen(viewModel)
+                                Screen.AIAgent -> AiAgentScreen(viewModel)
+                                Screen.DraftKK -> DraftKkScreen(viewModel)
+                                Screen.Riwayat -> HistoryLettersScreen(viewModel)
+                                Screen.Pengaturan -> SettingsScreen(viewModel)
+                            }
+                        }
+
+                        // Global Top Sync Alert toast overlay if triggering syncing state
+                        SyncIndicatorOverlay(
+                            syncState = syncState,
+                            onDismiss = { viewModel.triggerSync() }
+                        )
+                    }
                 }
             }
         }
+    }
+
+    // Modal Helper Dialogs
+    if (showHelpDialog) {
+        AlertDialog(
+            onDismissRequest = { showHelpDialog = false },
+            title = { Text("Panduan Pelayanan Desa Digital") },
+            text = {
+                Text("1. Gunakan menu Penduduk untuk melihat data registrasi warga.\n" +
+                     "2. Anda dapat Tambah Anggota Keluarga, Edit data, atau Hapus.\n" +
+                     "3. Gunakan menu Buat Surat untuk mencetak surat kependudukan secara otomatis (menggunakan Template KOP Dindukcapil Rembang terbaru).\n" +
+                     "4. Semua surat dilengkapi verifikasi Tanda Tangan Elektronik terintegrasi barcode BSrE.")
+            },
+            confirmButton = {
+                TextButton(onClick = { showHelpDialog = false }) {
+                    Text("Mengerti")
+                }
+            }
+        )
+    }
+
+    if (showAboutDialog) {
+        AlertDialog(
+            onDismissRequest = { showAboutDialog = false },
+            title = { Text("Tentang Aplikasi") },
+            text = {
+                Text("e-Surat Desa Digital Rembang v2026.1\n\n" +
+                     "Sistem Informasi Kependudukan berkecepatan tinggi terintegrasi AI, SIAK terluar, database Room SQLite, dan Sinkronisasi Cloud Firebase.")
+            },
+            confirmButton = {
+                TextButton(onClick = { showAboutDialog = false }) {
+                    Text("OK")
+                }
+            }
+        )
+    }
+
+    if (showNotifAlert) {
+        AlertDialog(
+            onDismissRequest = { showNotifAlert = false },
+            title = { Text("Notifikasi Sistem") },
+            text = {
+                Text("Sistem Integrasi SIAK DINDUKCAPIL Rembang & BSrE aktif sepenuhnya di desa ${settings.namaDesa}. Seluruh data kependudukan sinkron dengan server daerah.")
+            },
+            confirmButton = {
+                TextButton(onClick = { showNotifAlert = false }) {
+                    Text("Tutup")
+                }
+            }
+        )
     }
 }
 
@@ -184,56 +404,71 @@ fun DashboardScreen(viewModel: VillageViewModel, onNavigate: (Screen) -> Unit) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Welcome Banner Card
+        // Welcome Banner Card with Beautiful Linear Gradient (PrimaryBlue - SecondaryGreen)
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                shape = RoundedCornerShape(20.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
             ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text(
-                        text = "e-Surat Desa Digital",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Sistem Administrasi Desa ${settings.namaDesa} • Kec. ${settings.kecamatan}, Kab. ${settings.kabupaten}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                    )
-                    Spacer(modifier = Modifier.height(14.dp))
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Button(
-                            onClick = { onNavigate(Screen.AIAgent) },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                            modifier = Modifier.testTag("dashboard_quick_ai")
-                        ) {
-                            Icon(Icons.Default.Build, contentDescription = "AI")
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Buka Asisten AI")
-                        }
-                        
-                        IconButton(
-                            onClick = { viewModel.triggerSync() },
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
-                                .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
-                                .size(48.dp)
-                                .testTag("sync_cloud_btn")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Refresh,
-                                contentDescription = "Sync Cloud",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            androidx.compose.ui.graphics.Brush.linearGradient(
+                                colors = listOf(PrimaryBlue, SecondaryGreen)
                             )
+                        )
+                ) {
+                    Column(modifier = Modifier.padding(24.dp)) {
+                        Text(
+                            text = "e-Surat Desa Digital",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Sistem Administrasi Desa ${settings.namaDesa} • Kec. ${settings.kecamatan}, Kab. Rembang",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.White.copy(alpha = 0.9f)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Button(
+                                onClick = { onNavigate(Screen.AIAgent) },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color.White,
+                                    contentColor = PrimaryBlue
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.testTag("dashboard_quick_ai")
+                            ) {
+                                Icon(Icons.Default.Build, contentDescription = "AI", modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Panduan Asisten AI", fontWeight = FontWeight.Bold)
+                            }
+                            
+                            IconButton(
+                                onClick = { viewModel.triggerSync() },
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color.White.copy(alpha = 0.18f))
+                                    .border(1.dp, Color.White.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+                                    .size(48.dp)
+                                    .testTag("sync_cloud_btn")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Refresh,
+                                    contentDescription = "Sync Cloud",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -245,7 +480,8 @@ fun DashboardScreen(viewModel: VillageViewModel, onNavigate: (Screen) -> Unit) {
             Text(
                 text = "Statistik Pelayanan Hari Ini",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
             )
             Spacer(modifier = Modifier.height(10.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -283,42 +519,47 @@ fun DashboardScreen(viewModel: VillageViewModel, onNavigate: (Screen) -> Unit) {
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Row(
-                    modifier = Modifier.padding(16.dp),
+                    modifier = Modifier.padding(18.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
                         modifier = Modifier
                             .size(48.dp)
-                            .clip(RoundedCornerShape(24.dp))
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
+                            .clip(CircleShape)
+                            .background(SecondaryGreen.copy(alpha = 0.15f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             Icons.Default.Check, 
                             contentDescription = "Official",
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = SecondaryGreen,
+                            modifier = Modifier.size(22.dp)
                         )
                     }
                     Spacer(modifier = Modifier.width(16.dp))
                     Column {
                         Text(
                             text = "Pejabat Penandatangan Aktif:",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                            fontWeight = FontWeight.Medium
                         )
                         Text(
                             text = activeOfficial?.nama ?: "Belum Memilih Penandatangan",
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Bold
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = "${activeOfficial?.jabatan ?: "Staff"} • NIP. ${activeOfficial?.nip ?: "-"}",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
                     }
                 }
@@ -330,12 +571,13 @@ fun DashboardScreen(viewModel: VillageViewModel, onNavigate: (Screen) -> Unit) {
             Text(
                 text = "Aksi Administrasi Cepat",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(15.dp)
             ) {
                 QuickActionButton(
                     title = "Tambah Penduduk",
@@ -356,14 +598,44 @@ fun DashboardScreen(viewModel: VillageViewModel, onNavigate: (Screen) -> Unit) {
 fun MetricCard(title: String, value: String, icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Icon(icon, contentDescription = title, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(text = title, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-            Text(text = value, fontSize = 18.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onSurface)
+        Row(
+            modifier = Modifier.padding(18.dp).fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(PrimaryBlue.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = title,
+                    tint = PrimaryBlue,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(14.dp))
+            Column {
+                Text(
+                    text = title,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+                Text(
+                    text = value,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
         }
     }
 }
@@ -371,19 +643,39 @@ fun MetricCard(title: String, value: String, icon: androidx.compose.ui.graphics.
 @Composable
 fun QuickActionButton(title: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Card(
-        modifier = modifier.clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
+        modifier = modifier
+            .clip(RoundedCornerShape(14.dp))
+            .clickable { onClick() },
+        shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+        border = BorderStroke(1.dp, PrimaryBlue.copy(alpha = 0.25f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(
-            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+            modifier = Modifier.padding(18.dp).fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(text = title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-            Spacer(modifier = Modifier.width(6.dp))
-            Icon(Icons.Default.Add, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = PrimaryBlue
+            )
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(PrimaryBlue.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = null,
+                    tint = PrimaryBlue,
+                    modifier = Modifier.size(14.dp)
+                )
+            }
         }
     }
 }
@@ -398,6 +690,10 @@ fun VillagersScreen(viewModel: VillageViewModel) {
     val selectedGender by viewModel.selectedGenderFilter.collectAsState()
 
     var showAddDialog by remember { mutableStateOf(false) }
+    var selectedForDetail by remember { mutableStateOf<Villager?>(null) }
+    var selectedForEdit by remember { mutableStateOf<Villager?>(null) }
+    var selectedForDelete by remember { mutableStateOf<Villager?>(null) }
+    var prefilledKkForAddMember by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = Modifier
@@ -409,27 +705,30 @@ fun VillagersScreen(viewModel: VillageViewModel) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { viewModel.updateSearchQuery(it) },
+                maxLines = 1,
                 placeholder = { Text("Cari NIK, Nama, No KK...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = PrimaryBlue) },
                 modifier = Modifier
                     .weight(1f)
                     .testTag("search_villager_input"),
                 singleLine = true,
+                shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    focusedBorderColor = PrimaryBlue,
                     unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
                 )
             )
 
             FloatingActionButton(
                 onClick = { showAddDialog = true },
-                containerColor = MaterialTheme.colorScheme.primary,
+                containerColor = PrimaryBlue,
                 contentColor = Color.White,
+                shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.testTag("add_villager_fab")
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add Villager")
@@ -441,25 +740,21 @@ fun VillagersScreen(viewModel: VillageViewModel) {
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            // Dusun Mulyo filter
             FilterChip(
                 selected = selectedDusun == "Dusun Mulyo",
                 onClick = { viewModel.setDusunFilter(if (selectedDusun == "Dusun Mulyo") null else "Dusun Mulyo") },
                 label = { Text("Dusun Mulyo") }
             )
-            // Dusun Krajan filter
             FilterChip(
                 selected = selectedDusun == "Dusun Krajan",
                 onClick = { viewModel.setDusunFilter(if (selectedDusun == "Dusun Krajan") null else "Dusun Krajan") },
                 label = { Text("Dusun Krajan") }
             )
-            // Laki-laki filter
             FilterChip(
                 selected = selectedGender == "Laki-laki",
                 onClick = { viewModel.setGenderFilter(if (selectedGender == "Laki-laki") null else "Laki-laki") },
                 label = { Text("Laki-laki") }
             )
-            // Perempuan filter
             FilterChip(
                 selected = selectedGender == "Perempuan",
                 onClick = { viewModel.setGenderFilter(if (selectedGender == "Perempuan") null else "Perempuan") },
@@ -467,12 +762,19 @@ fun VillagersScreen(viewModel: VillageViewModel) {
             )
         }
 
-        // Residents Registry list
-        Text(
-            text = "Registry Kependudukan (${villagers.size} Terdaftar)",
-            fontWeight = FontWeight.Bold,
-            style = MaterialTheme.typography.titleMedium
-        )
+        // Residents Registry Table Title
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "Registry Kependudukan (${villagers.size} Terdaftar)",
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+        }
 
         if (villagers.isEmpty()) {
             Box(
@@ -491,15 +793,145 @@ fun VillagersScreen(viewModel: VillageViewModel) {
                 }
             }
         } else {
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+            // Elegant Zebra Data Table
+            Card(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
             ) {
-                items(villagers, key = { it.nik }) { villager ->
-                    VillagerItemCard(
-                        villager = villager,
-                        onDelete = { viewModel.removeVillager(villager) }
-                    )
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // Table Header
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(PrimaryBlue.copy(alpha = 0.08f))
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "NIK & Nama Lengkap",
+                            modifier = Modifier.weight(1.3f),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            color = PrimaryBlue
+                        )
+                        Text(
+                            text = "Dusun",
+                            modifier = Modifier.weight(0.8f),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            color = PrimaryBlue
+                        )
+                        Text(
+                            text = "Aksi Operasi",
+                            modifier = Modifier.weight(1.2f),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            color = PrimaryBlue,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+
+                    // Table Rows
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        itemsIndexed(villagers) { index, villager ->
+                            val isZebra = index % 2 == 1
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(if (isZebra) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface)
+                                    .padding(horizontal = 14.dp, vertical = 10.dp)
+                                    .testTag("villager_card_${villager.nik}"),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // NIK & Nama Column
+                                Column(modifier = Modifier.weight(1.3f)) {
+                                    Text(
+                                        text = villager.namaLengkap,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = "NIK: ${villager.nik}",
+                                        fontSize = 10.sp,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                    )
+                                }
+
+                                // Dusun Column
+                                Text(
+                                    text = villager.dusun,
+                                    modifier = Modifier.weight(0.8f),
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                                )
+
+                                // Simple Action Buttons (Detail, Edit, Hapus, Tambah Anggota)
+                                Row(
+                                    modifier = Modifier.weight(1.2f),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // Detail Button
+                                    IconButton(
+                                        onClick = { selectedForDetail = villager },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Info,
+                                            contentDescription = "Detail",
+                                            tint = PrimaryBlue,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+
+                                    // Edit Button
+                                    IconButton(
+                                        onClick = { selectedForEdit = villager },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Edit,
+                                            contentDescription = "Edit",
+                                            tint = SecondaryGreen,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+
+                                    // Tambah Anggota Keluarga Button
+                                    IconButton(
+                                        onClick = { prefilledKkForAddMember = villager.noKk },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.AddCircle,
+                                            contentDescription = "Tambah Anggota",
+                                            tint = MaterialTheme.colorScheme.secondary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+
+                                    // Hapus Button
+                                    IconButton(
+                                        onClick = { selectedForDelete = villager },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Delete,
+                                            contentDescription = "Hapus",
+                                            tint = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                            }
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+                        }
+                    }
                 }
             }
         }
@@ -515,72 +947,142 @@ fun VillagersScreen(viewModel: VillageViewModel) {
             }
         )
     }
+
+    // Edit Resident dialog
+    if (selectedForEdit != null) {
+        AddVillagerDialog(
+            initialVillager = selectedForEdit,
+            onDismiss = { selectedForEdit = null },
+            onConfirm = {
+                viewModel.addVillager(it)
+                selectedForEdit = null
+            }
+        )
+    }
+
+    // Tambah Anggota Keluarga dialog
+    if (prefilledKkForAddMember != null) {
+        AddVillagerDialog(
+            prefilledKk = prefilledKkForAddMember,
+            onDismiss = { prefilledKkForAddMember = null },
+            onConfirm = {
+                viewModel.addVillager(it)
+                prefilledKkForAddMember = null
+            }
+        )
+    }
+
+    // Detail dialog
+    if (selectedForDetail != null) {
+        VillagerDetailDialog(
+            villager = selectedForDetail!!,
+            onDismiss = { selectedForDetail = null }
+        )
+    }
+
+    // Delete dialog
+    if (selectedForDelete != null) {
+        AlertDialog(
+            onDismissRequest = { selectedForDelete = null },
+            title = { Text("Konfirmasi Penghapusan") },
+            text = { Text("Apakah Anda yakin ingin menghapus '${selectedForDelete?.namaLengkap}' dari data kependudukan desa?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        selectedForDelete?.let { viewModel.removeVillager(it) }
+                        selectedForDelete = null
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Hapus", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { selectedForDelete = null }) {
+                    Text("Batal")
+                }
+            }
+        )
+    }
 }
 
 @Composable
-fun VillagerItemCard(
+fun VillagerDetailDialog(
     villager: Villager,
-    onDelete: () -> Unit
+    onDismiss: () -> Unit
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag("villager_card_${villager.nik}"),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.15f))
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(20.dp)
+                    .fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Text(
-                    text = villager.namaLengkap,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                IconButton(onClick = onDelete) {
-                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.error)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(CircleShape)
+                            .background(PrimaryBlue.copy(alpha = 0.1f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Person, contentDescription = null, tint = PrimaryBlue)
+                    }
+                    Spacer(modifier = Modifier.width(14.dp))
+                    Column {
+                        Text(
+                            text = villager.namaLengkap,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "NIK: ${villager.nik}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = PrimaryBlue,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
-            }
-            Spacer(modifier = Modifier.height(6.dp))
-            Divider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Info rows
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("N.I.K:", fontSize = 10.sp, color = Color.Gray)
-                    Text(villager.nik, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+                
+                LazyColumn(
+                    modifier = Modifier.heightIn(max = 280.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    item { DetailItemRow("Nomor Kartu Keluarga (KK)", villager.noKk) }
+                    item { DetailItemRow("Tempat, Tanggal Lahir", "${villager.tempatLahir}, ${villager.tanggalLahir}") }
+                    item { DetailItemRow("Jenis Kelamin", villager.jenisKelamin) }
+                    item { DetailItemRow("Hubungan Keluarga", villager.hubunganKeluarga) }
+                    item { DetailItemRow("Status Menikah", villager.statusPerkawinan) }
+                    item { DetailItemRow("Pendidikan", villager.pendidikan) }
+                    item { DetailItemRow("Pekerjaan", villager.pekerjaan) }
+                    item { DetailItemRow("Agama", villager.agama) }
+                    item { DetailItemRow("Dusun / RT / RW", "${villager.dusun} RT ${villager.rt} RW ${villager.rw}") }
+                    item { DetailItemRow("Ayah Kandung", villager.namaAyah) }
+                    item { DetailItemRow("Ibu Kandung", villager.namaIbu) }
                 }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Nomor KK:", fontSize = 10.sp, color = Color.Gray)
-                    Text(villager.noKk, fontSize = 13.sp)
-                }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Tempat, Tanggal Lahir:", fontSize = 10.sp, color = Color.Gray)
-                    Text("${villager.tempatLahir}, ${villager.tanggalLahir}", fontSize = 12.sp)
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Alamat / Dusun:", fontSize = 10.sp, color = Color.Gray)
-                    Text("${villager.dusun} RT ${villager.rt} RW ${villager.rw}", fontSize = 12.sp)
-                }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Pendidikan / Hubungan KK:", fontSize = 10.sp, color = Color.Gray)
-                    Text("${villager.pendidikan} • ${villager.hubunganKeluarga}", fontSize = 12.sp)
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Orang Tua (Ayah / Ibu):", fontSize = 10.sp, color = Color.Gray)
-                    Text("${villager.namaAyah} / ${villager.namaIbu}", fontSize = 12.sp)
+                
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+                
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
+                ) {
+                    Text("Tutup detail", color = Color.White)
                 }
             }
         }
@@ -588,44 +1090,70 @@ fun VillagerItemCard(
 }
 
 @Composable
+fun DetailItemRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 1.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(text = label, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f))
+        Text(text = value.ifBlank { "-" }, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.End)
+    }
+}
+
+@Composable
 fun AddVillagerDialog(
+    initialVillager: Villager? = null,
+    prefilledKk: String? = null,
     onDismiss: () -> Unit,
     onConfirm: (Villager) -> Unit
 ) {
-    var nik by remember { mutableStateOf("") }
-    var noKk by remember { mutableStateOf("") }
-    var namaLengkap by remember { mutableStateOf("") }
-    var selectedGender by remember { mutableStateOf("Laki-laki") }
-    var tempatLahir by remember { mutableStateOf("Rembang") }
-    var tanggalLahir by remember { mutableStateOf("1995-10-10") }
-    var namaAyah by remember { mutableStateOf("") }
-    var namaIbu by remember { mutableStateOf("") }
-    var pendidikan by remember { mutableStateOf("SMA") }
-    var pekerjaan by remember { mutableStateOf("Wiraswasta") }
-    var statusKawin by remember { mutableStateOf("Belum Kawin") }
-    var hubKeluarga by remember { mutableStateOf("Anak") }
-    var agama by remember { mutableStateOf("Islam") }
-    var rt by remember { mutableStateOf("01") }
-    var rw by remember { mutableStateOf("01") }
-    var dusun by remember { mutableStateOf("Dusun Mulyo") }
+    var nik by remember { mutableStateOf(initialVillager?.nik ?: "") }
+    var noKk by remember { mutableStateOf(initialVillager?.noKk ?: prefilledKk ?: "") }
+    var namaLengkap by remember { mutableStateOf(initialVillager?.namaLengkap ?: "") }
+    var selectedGender by remember { mutableStateOf(initialVillager?.jenisKelamin ?: "Laki-laki") }
+    var tempatLahir by remember { mutableStateOf(initialVillager?.tempatLahir ?: "Rembang") }
+    var tanggalLahir by remember { mutableStateOf(initialVillager?.tanggalLahir ?: "1995-10-10") }
+    var namaAyah by remember { mutableStateOf(initialVillager?.namaAyah ?: "") }
+    var namaIbu by remember { mutableStateOf(initialVillager?.namaIbu ?: "") }
+    var pendidikan by remember { mutableStateOf(initialVillager?.pendidikan ?: "SMA") }
+    var pekerjaan by remember { mutableStateOf(initialVillager?.pekerjaan ?: "Wiraswasta") }
+    var statusKawin by remember { mutableStateOf(initialVillager?.statusPerkawinan ?: "Belum Kawin") }
+    var hubKeluarga by remember { mutableStateOf(initialVillager?.hubunganKeluarga ?: (if (prefilledKk != null) "Anak" else "Kepala Keluarga")) }
+    var agama by remember { mutableStateOf(initialVillager?.agama ?: "Islam") }
+    var rt by remember { mutableStateOf(initialVillager?.rt ?: "01") }
+    var rw by remember { mutableStateOf(initialVillager?.rw ?: "01") }
+    var dusun by remember { mutableStateOf(initialVillager?.dusun ?: "Dusun Mulyo") }
+
+    val isEditMode = initialVillager != null
+    val titleText = when {
+        isEditMode -> "Ubah Data Penduduk"
+        prefilledKk != null -> "Tambah Anggota Keluarga"
+        else -> "Registrasi Penduduk Baru"
+    }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(8.dp)
-                .heightIn(max = 560.dp),
-            shape = RoundedCornerShape(16.dp),
+                .heightIn(max = 580.dp),
+            shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Column(
                 modifier = Modifier
-                    .padding(16.dp)
+                    .padding(20.dp)
                     .fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text("Registrasi Penduduk Baru", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-                Divider()
+                Text(
+                    text = titleText,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = PrimaryBlue
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
                 LazyColumn(
                     modifier = Modifier.weight(1f, fill = false),
@@ -634,11 +1162,12 @@ fun AddVillagerDialog(
                     item {
                         OutlinedTextField(
                             value = nik,
-                            onValueChange = { if (it.length <= 16) nik = it },
+                            onValueChange = { if (it.length <= 16 && !isEditMode) nik = it },
                             label = { Text("N.I.K. (16 Digit)") },
+                            enabled = !isEditMode, // NIK cannot be changed during Edit
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             modifier = Modifier.fillMaxWidth().testTag("add_nik_field"),
-                            singleLine = true
+                            shape = RoundedCornerShape(12.dp)
                         )
                     }
                     item {
@@ -648,7 +1177,7 @@ fun AddVillagerDialog(
                             label = { Text("Nomor Kartu Keluarga (KK)") },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             modifier = Modifier.fillMaxWidth().testTag("add_kk_field"),
-                            singleLine = true
+                            shape = RoundedCornerShape(12.dp)
                         )
                     }
                     item {
@@ -657,20 +1186,19 @@ fun AddVillagerDialog(
                             onValueChange = { namaLengkap = it },
                             label = { Text("Nama Lengkap") },
                             modifier = Modifier.fillMaxWidth().testTag("add_name_field"),
-                            singleLine = true
+                            shape = RoundedCornerShape(12.dp)
                         )
                     }
                     item {
-                        // Gender Row
-                        Text("Jenis Kelamin", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text("Jenis Kelamin", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
                         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 RadioButton(selected = selectedGender == "Laki-laki", onClick = { selectedGender = "Laki-laki" })
-                                Text("Laki-laki", fontSize = 14.sp)
+                                Text("Laki-laki", fontSize = 13.sp)
                             }
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 RadioButton(selected = selectedGender == "Perempuan", onClick = { selectedGender = "Perempuan" })
-                                Text("Perempuan", fontSize = 14.sp)
+                                Text("Perempuan", fontSize = 13.sp)
                             }
                         }
                     }
@@ -680,13 +1208,15 @@ fun AddVillagerDialog(
                                 value = tempatLahir,
                                 onValueChange = { tempatLahir = it },
                                 label = { Text("Tempat Lahir") },
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp)
                             )
                             OutlinedTextField(
                                 value = tanggalLahir,
                                 onValueChange = { tanggalLahir = it },
                                 label = { Text("Tgl Lahir (YYYY-MM-DD)") },
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp)
                             )
                         }
                     }
@@ -696,13 +1226,15 @@ fun AddVillagerDialog(
                                 value = namaAyah,
                                 onValueChange = { namaAyah = it },
                                 label = { Text("Nama Ayah") },
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp)
                             )
                             OutlinedTextField(
                                 value = namaIbu,
                                 onValueChange = { namaIbu = it },
                                 label = { Text("Nama Ibu") },
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp)
                             )
                         }
                     }
@@ -712,25 +1244,73 @@ fun AddVillagerDialog(
                                 value = rt,
                                 onValueChange = { rt = it },
                                 label = { Text("RT") },
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp)
                             )
                             OutlinedTextField(
                                 value = rw,
                                 onValueChange = { rw = it },
                                 label = { Text("RW") },
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp)
                             )
                             OutlinedTextField(
                                 value = dusun,
                                 onValueChange = { dusun = it },
                                 label = { Text("Dusun") },
-                                modifier = Modifier.weight(2f)
+                                modifier = Modifier.weight(2f),
+                                shape = RoundedCornerShape(12.dp)
                             )
                         }
                     }
+                    item {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedTextField(
+                                value = hubKeluarga,
+                                onValueChange = { hubKeluarga = it },
+                                label = { Text("Hubungan KK (e.g. Anak)") },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            OutlinedTextField(
+                                value = statusKawin,
+                                onValueChange = { statusKawin = it },
+                                label = { Text("Status Nikah") },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                        }
+                    }
+                    item {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedTextField(
+                                value = pendidikan,
+                                onValueChange = { pendidikan = it },
+                                label = { Text("Pendidikan") },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            OutlinedTextField(
+                                value = pekerjaan,
+                                onValueChange = { pekerjaan = it },
+                                label = { Text("Pekerjaan") },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                        }
+                    }
+                    item {
+                        OutlinedTextField(
+                            value = agama,
+                            onValueChange = { agama = it },
+                            label = { Text("Agama") },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                    }
                 }
 
-                Divider()
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
@@ -749,13 +1329,14 @@ fun AddVillagerDialog(
                                         tempatLahir = tempatLahir, tanggalLahir = tanggalLahir, namaAyah = namaAyah, namaIbu = namaIbu,
                                         pendidikan = pendidikan, pekerjaan = pekerjaan, statusPerkawinan = statusKawin,
                                         hubunganKeluarga = hubKeluarga, agama = agama, rt = rt, rw = rw, dusun = dusun,
-                                        alamat = "RT $rt RW $rw, $dusun, Soditan"
+                                        alamat = "RT $rt RW $rw, $dusun"
                                     )
                                 )
                             }
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                        modifier = Modifier.testTag("submit_villager")
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
+                        modifier = Modifier.testTag("submit_villager"),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
                         Text("Simpan data", color = Color.White)
                     }
@@ -2225,20 +2806,18 @@ fun printSuratAsPdf(
             <div class="signature-section">
                 <table class="sig-table">
                     <tr>
-                        <td class="sig-cell">
-                            <div style="text-align: left; padding: 5px;">
-                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${java.net.URLEncoder.encode(item.qrVerificationUrl, "UTF-8")}" style="width: 80px; height: 80px; background: white; border: 1px solid #000; padding: 2px; display: inline-block;" alt="QR Verification" />
-                            </div>
+                        <td class="sig-cell" style="width: 50%;">
+                            <!-- Bagian Kiri Kosong -->
                         </td>
-                        <td class="sig-cell sig-right">
+                        <td class="sig-cell sig-right" style="width: 50%;">
                             <div class="sig-title">
                                 ${settings.namaDesa}, ${item.tanggalTerbit}<br>
                                 Kepala Desa ${settings.namaDesa}
                             </div>
                             
-                            <div class="tte-badge-container">
-                                <div class="tte-badge">Tandatangan Elektronik</div>
-                                <div class="tte-sub">BSrE BSSN Tersertifikasi</div>
+                            <!-- QR Code berada tepat di atas nama pejabat penandatangan, tanpa caption teks apapun, murni QR Code -->
+                            <div style="margin: 10px auto; text-align: center;">
+                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${java.net.URLEncoder.encode(item.qrVerificationUrl, "UTF-8")}" style="width: 90px; height: 90px; background: white; border: 1px solid #000; padding: 2px; display: inline-block;" alt="TTE" />
                             </div>
                             
                             <div class="sig-name">${item.pejabatTtd}</div>
