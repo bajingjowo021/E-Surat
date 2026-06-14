@@ -44,6 +44,7 @@ data class VillageSettings(
     val provinsi: String = "Jawa Tengah",
     val alamat: String = "Jl. Raya Soditan No. 12",
     val kodePos: String = "59271",
+    val email: String = "desa.soditan@rembangkab.go.id",
     val logoUrl: String = "" // Placeholder or empty
 )
 

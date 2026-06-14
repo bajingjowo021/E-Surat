@@ -11,7 +11,7 @@ import kotlinx.coroutines.launch
 
 @Database(
     entities = [Villager::class, Official::class, VillageSettings::class, SuratHistory::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -31,6 +31,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "e_surat_desa_db"
                 )
+                .fallbackToDestructiveMigration()
                 .addCallback(object : RoomDatabase.Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {
                         super.onCreate(db)
@@ -56,7 +57,8 @@ abstract class AppDatabase : RoomDatabase() {
                     kabupaten = "Rembang",
                     provinsi = "Jawa Tengah",
                     alamat = "Jl. Raya Soditan No. 12",
-                    kodePos = "59271"
+                    kodePos = "59271",
+                    email = "desa.soditan@rembangkab.go.id"
                 )
             )
 

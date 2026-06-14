@@ -91,7 +91,6 @@ fun AppNavigationScaffold(
                             selected = currentScreen == screen,
                             onClick = { currentScreen = screen },
                             icon = { Icon(screen.icon, contentDescription = screen.title) },
-                            label = { Text(screen.title, fontSize = 10.sp, fontWeight = FontWeight.Bold) },
                             colors = NavigationRailItemDefaults.colors(
                                 selectedIconColor = MaterialTheme.colorScheme.primary,
                                 unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
@@ -116,7 +115,7 @@ fun AppNavigationScaffold(
                                     selected = currentScreen == screen,
                                     onClick = { currentScreen = screen },
                                     icon = { Icon(screen.icon, contentDescription = screen.title) },
-                                    label = { Text(screen.title, fontSize = 9.sp, maxLines = 1) },
+                                    alwaysShowLabel = false,
                                     modifier = Modifier.testTag("nav_tab_${screen.name.lowercase()}"),
                                     colors = NavigationBarItemDefaults.colors(
                                         selectedIconColor = MaterialTheme.colorScheme.primary,
@@ -220,13 +219,21 @@ fun DashboardScreen(viewModel: VillageViewModel, onNavigate: (Screen) -> Unit) {
                             Text("Buka Asisten AI")
                         }
                         
-                        OutlinedButton(
+                        IconButton(
                             onClick = { viewModel.triggerSync() },
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary)
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+                                .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                                .size(48.dp)
+                                .testTag("sync_cloud_btn")
                         ) {
-                            Icon(Icons.Default.Refresh, contentDescription = "Sync Cloud")
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Sinkron Cloud")
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Sync Cloud",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
                         }
                     }
                 }
@@ -1606,6 +1613,7 @@ fun SettingsScreen(viewModel: VillageViewModel) {
     var kab by remember { mutableStateOf("") }
     var pos by remember { mutableStateOf("") }
     var alamat by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
     var logoBase64 by remember { mutableStateOf("") }
 
     // On-demand settings population
@@ -1615,6 +1623,7 @@ fun SettingsScreen(viewModel: VillageViewModel) {
         kab = settings.kabupaten
         pos = settings.kodePos
         alamat = settings.alamat
+        email = settings.email
         logoBase64 = settings.logoUrl
     }
 
@@ -1799,6 +1808,17 @@ fun SettingsScreen(viewModel: VillageViewModel) {
         }
 
         item {
+            OutlinedTextField(
+                value = email,
+                onValueChange = { email = it },
+                label = { Text("Email Kantor Desa") },
+                modifier = Modifier.fillMaxWidth().testTag("settings_email_field"),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                singleLine = true
+            )
+        }
+
+        item {
             Button(
                 onClick = {
                     viewModel.updateSettings(
@@ -1808,6 +1828,7 @@ fun SettingsScreen(viewModel: VillageViewModel) {
                             kabupaten = kab,
                             alamat = alamat,
                             kodePos = pos,
+                            email = email,
                             logoUrl = logoBase64
                         )
                     )
@@ -2000,20 +2021,13 @@ fun printSuratAsPdf(
     settings: com.bajingjowo.esurat.data.VillageSettings
 ) {
     val logoHtml = if (settings.logoUrl.isNotEmpty()) {
-        """<img src="data:image/png;base64,${settings.logoUrl}" style="max-height: 80px; max-width: 80px; object-fit: contain;" />"""
+        """<img src="data:image/png;base64,${settings.logoUrl}" style="max-height: 85px; max-width: 85px; object-fit: contain;" />"""
     } else {
-        """
-        <svg viewBox="0 0 100 100" style="width: 80px; height: 80px;">
-            <circle cx="50" cy="50" r="45" fill="none" stroke="#000" stroke-width="3" />
-            <circle cx="50" cy="50" r="40" fill="none" stroke="#000" stroke-width="1" stroke-dasharray="3,3" />
-            <path d="M50 15 L80 40 L50 90 L20 40 Z" fill="none" stroke="#000" stroke-width="2.5" />
-            <path d="M50 30 L65 42 L50 72 L35 42 Z" fill="#000" />
-            <text x="50" y="58" font-family="'Times New Roman', serif" font-size="9" font-weight="bold" text-anchor="middle" fill="#fff">DESA</text>
-        </svg>
-        """.trimIndent()
+        """<img src="https://upload.wikimedia.org/wikipedia/commons/e/ea/Logo_Kabupaten_Rembang.png" style="max-height: 85px; max-width: 85px; object-fit: contain;" alt="Logo Kabupaten Rembang" />"""
     }
 
     val nama = villager?.namaLengkap ?: item.namaPemohon
+    val nkkText = if (villager?.noKk != null && villager.noKk.isNotBlank()) " / ${villager.noKk}" else ""
     val nik = villager?.nik ?: item.nik
     val noKk = villager?.noKk ?: "-"
     val gender = villager?.jenisKelamin ?: "-"
@@ -2024,9 +2038,9 @@ fun printSuratAsPdf(
     val alamatPemohon = villager?.alamat ?: "Desa ${settings.namaDesa}"
     
     val tambahanKeterangan = if (item.isiSuratJson.isNotEmpty()) {
-        "Menerangkan bahwa yang bersangkutan berkelakuan baik, aktif dalam kegiatan kemasyarakatan, serta memenuhi kriteria administratif untuk keperluan: <strong>${item.isiSuratJson}</strong>."
+        "Menerangkan dengan sebenarnya bahwa yang bersangkutan berkelakuan baik, aktif dalam kegiatan kemasyarakatan, serta memenuhi kriteria administratif untuk keperluan: <strong>${item.isiSuratJson}</strong>."
     } else {
-        "Menerangkan bahwa yang bersangkutan adalah warga Desa resmi yang berkelakuan baik serta teregistrasi dalam data tertib sipil desa untuk dapat dipergunakan sebagaimana mestinya."
+        "Menerangkan dengan sebenarnya bahwa yang bersangkutan adalah warga Desa resmi yang berkelakuan baik serta teregistrasi dalam data tertib sipil desa untuk dapat dipergunakan sebagaimana mestinya."
     }
 
     val htmlContent = """
@@ -2035,55 +2049,116 @@ fun printSuratAsPdf(
         <head>
             <meta charset="utf-8">
             <style>
-                body { font-family: 'Times New Roman', Times, serif; margin: 40px; color: #000; line-height: 1.6; }
-                .kop-table { width: 100%; border-collapse: collapse; margin-bottom: 5px; }
-                .kop-logo { width: 95px; text-align: left; vertical-align: middle; }
-                .kop-text { text-align: center; vertical-align: middle; padding-right: 40px; }
-                .kop-text h2 { margin: 0; font-size: 15px; font-weight: bold; text-transform: uppercase; }
-                .kop-text h1 { margin: 2px 0; font-size: 20px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
-                .kop-text p { margin: 2px 0; font-size: 11px; }
-                .line-double { border-top: 4px double #000; margin-top: 10px; margin-bottom: 25px; height: 0; }
-                .title { text-align: center; margin-bottom: 30px; }
-                .title h3 { margin: 0; font-size: 16px; font-weight: bold; text-decoration: underline; text-transform: uppercase; letter-spacing: 0.5px; }
-                .title p { margin: 4px 0; font-size: 12px; font-family: 'Courier New', Courier, monospace; font-weight: bold; }
-                .content { font-size: 14px; text-align: justify; }
-                .content p { margin-bottom: 12px; text-indent: 40.0px; }
-                .details-table { width: 90%; margin: 20px auto; border-collapse: collapse; font-size: 14px; }
-                .details-table td { padding: 5px 8px; vertical-align: top; }
-                .details-table td.label { width: 35%; }
-                .signature-section { width: 100%; margin-top: 45px; font-size: 14px; }
+                body { 
+                    font-family: 'Times New Roman', Times, serif; 
+                    margin: 40px; 
+                    color: #000; 
+                    line-height: 1.5; 
+                }
+                .header-wrapper {
+                    position: relative;
+                }
+                .siak-badge {
+                    position: absolute;
+                    top: -15px;
+                    right: 0;
+                    border: 1px solid #1565c0;
+                    color: #1565c0;
+                    font-size: 8px;
+                    font-weight: bold;
+                    padding: 2px 5px;
+                    border-radius: 3px;
+                    font-family: sans-serif;
+                    letter-spacing: 0.5px;
+                    text-transform: uppercase;
+                }
+                .kop-table { width: 100%; border-collapse: collapse; margin-bottom: 2px; }
+                .kop-logo { width: 90px; text-align: left; vertical-align: middle; }
+                .kop-text { text-align: center; vertical-align: middle; padding-right: 45px; }
+                .kop-text h3 { margin: 0; font-size: 14px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.2px; }
+                .kop-text h2 { margin: 2px 0; font-size: 16px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.3px; }
+                .kop-text h1 { margin: 2px 0; font-size: 19px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
+                .kop-text p { margin: 2px 0; font-size: 11px; font-style: italic; color: #333; }
+                .line-double { border-top: 3.5px double #000; margin-top: 8px; margin-bottom: 22px; height: 0; }
+                .title { text-align: center; margin-bottom: 25px; }
+                .title h3 { margin: 0; font-size: 15px; font-weight: bold; text-decoration: underline; text-transform: uppercase; letter-spacing: 0.5px; }
+                .title p { margin: 3px 0; font-size: 12px; font-family: 'Courier New', Courier, monospace; font-weight: bold; }
+                .content { font-size: 13.5px; text-align: justify; }
+                .content p { margin-bottom: 12px; text-indent: 40px; }
+                .details-table { width: 88%; margin: 15px auto; border-collapse: collapse; font-size: 13.5px; }
+                .details-table td { padding: 4px 6px; vertical-align: top; }
+                .details-table td.label { width: 33%; }
+                .signature-section { width: 100%; margin-top: 40px; font-size: 13.5px; page-break-inside: avoid; }
                 .sig-table { width: 100%; border-collapse: collapse; }
                 .sig-cell { width: 50%; vertical-align: top; }
                 .sig-right { text-align: center; }
-                .sig-name { font-weight: bold; text-decoration: underline; margin-top: 5px; text-transform: uppercase; }
-                .sig-title { margin-bottom: 10px; line-height: 1.3; }
-                .tte-badge { display: inline-block; padding: 5px 10px; border: 2px solid #2e7d32; color: #2e7d32; font-size: 9px; font-weight: bold; margin: 12px auto; text-transform: uppercase; letter-spacing: 0.5px; border-radius: 2px; }
-                .sig-desc { font-size: 9px; color: #555; text-align: left; max-width: 210px; border: 1px dashed #bbb; padding: 8px; border-radius: 4px; background: #fafafa; line-height: 1.4; }
+                .sig-name { font-weight: bold; text-decoration: underline; margin-top: 4px; text-transform: uppercase; font-size: 14px; }
+                .sig-title { margin-bottom: 10px; line-height: 1.3; font-weight: bold; }
+                .tte-badge-container {
+                    display: inline-block;
+                    margin: 8px auto;
+                    border: 1.5px solid #1b5e20;
+                    border-radius: 4px;
+                    padding: 3px 10px;
+                    background-color: #f1f8e9;
+                    box-sizing: border-box;
+                    max-width: 180px;
+                }
+                .tte-badge { 
+                    color: #1b5e20; 
+                    font-size: 8.5px; 
+                    font-weight: bold; 
+                    text-transform: uppercase; 
+                    letter-spacing: 0.8px;
+                    font-family: sans-serif;
+                }
+                .tte-sub {
+                    font-size: 7px;
+                    color: #555;
+                    font-family: sans-serif;
+                    margin-top: 1px;
+                }
+                .sig-desc { 
+                    font-size: 9px; 
+                    color: #444; 
+                    text-align: left; 
+                    max-width: 270px; 
+                    border: 1px dashed #777; 
+                    padding: 10px; 
+                    border-radius: 5px; 
+                    background: #fbfbfb; 
+                    line-height: 1.4;
+                    font-family: sans-serif;
+                }
             </style>
         </head>
         <body>
-            <table class="kop-table">
-                <tr>
-                    <td class="kop-logo">
-                        $logoHtml
-                    </td>
-                    <td class="kop-text">
-                        <h2>PEMERINTAH KABUPATEN ${settings.kabupaten.uppercase()}</h2>
-                        <h2>KECAMATAN ${settings.kecamatan.uppercase()}</h2>
-                        <h1>KANTOR KEPALA DESA ${settings.namaDesa.uppercase()}</h1>
-                        <p>Alamat: ${settings.alamat} • Kode Pos: ${settings.kodePos}</p>
-                    </td>
-                </tr>
-            </table>
+            <div class="header-wrapper">
+                <span class="siak-badge">SIAK DINDUKCAPIL REMBANG</span>
+                <table class="kop-table">
+                    <tr>
+                        <td class="kop-logo">
+                            $logoHtml
+                        </td>
+                        <td class="kop-text">
+                            <h3>PEMERINTAH KABUPATEN REMBANG</h3>
+                            <h2>KECAMATAN ${settings.kecamatan.uppercase()}</h2>
+                            <h1>DESA ${settings.namaDesa.uppercase()}</h1>
+                            <p>Alamat: ${settings.alamat} • Kode Pos: ${settings.kodePos}</p>
+                            <p style="margin: 2px 0; font-size: 11px; font-style: italic; color: #333;">Email: ${settings.email}</p>
+                        </td>
+                    </tr>
+                </table>
+            </div>
             <div class="line-double"></div>
             
             <div class="title">
-                <h3>SURAT KETERANGAN ${item.jenisSurat.uppercase()}</h3>
+                <h3>SURAT KETERANGAN KEPENDUDUKAN</h3>
                 <p>Nomor: ${item.nomorSurat}</p>
             </div>
             
             <div class="content">
-                <p>Yang bertanda tangan di bawah ini, Kepala Desa ${settings.namaDesa}, Kecamatan ${settings.kecamatan}, Kabupaten ${settings.kabupaten}, Provinsi ${settings.provinsi}, menerangkan dengan sebenarnya bahwa warga kami:</p>
+                <p>Berdasarkan Peraturan Menteri Dalam Negeri Republik Indonesia Nomor 109 Tahun 2019 tentang Formulir dan Buku yang Digunakan dalam Administrasi Kependudukan, serta rujukan database terpusat Dinas Kependudukan dan Pencatatan Sipil (Dindukcapil) Kabupaten Rembang, yang bertanda tangan di bawah ini Kepala Desa ${settings.namaDesa}, Kecamatan ${settings.kecamatan}, menerangkan dengan sebenarnya bahwa warga kami:</p>
                 
                 <table class="details-table">
                     <tr>
@@ -2091,34 +2166,38 @@ fun printSuratAsPdf(
                         <td>: <strong>$nama</strong></td>
                     </tr>
                     <tr>
-                        <td class="label">N.I.K / No. KK</td>
-                        <td>: $nik / $noKk</td>
+                        <td class="label">Nomor Induk Kependudukan (NIK)</td>
+                        <td>: <strong>$nik</strong></td>
                     </tr>
                     <tr>
-                        <td class="label">Jenis Kelamin</td>
-                        <td>: $gender</td>
+                        <td class="label">Nomor Kartu Keluarga (KK)</td>
+                        <td>: $noKk</td>
                     </tr>
                     <tr>
                         <td class="label">Tempat, Tanggal Lahir</td>
                         <td>: $ttl</td>
                     </tr>
                     <tr>
-                        <td class="label">Agama / Status Sipil</td>
+                        <td class="label">Jenis Kelamin</td>
+                        <td>: $gender</td>
+                    </tr>
+                    <tr>
+                        <td class="label">Agama / Status Pernikahan</td>
                         <td>: $agama / $status</td>
                     </tr>
                     <tr>
-                        <td class="label">Pekerjaan</td>
+                        <td class="label">Pekerjaan Terdaftar</td>
                         <td>: $pekerjaan</td>
                     </tr>
                     <tr>
-                        <td class="label">Alamat Lengkap</td>
+                        <td class="label">Alamat Lengkap (Sesuai KTP)</td>
                         <td>: $alamatPemohon</td>
                     </tr>
                 </table>
                 
                 <p>$tambahanKeterangan</p>
                 
-                <p>Demikian surat keterangan ini kami buat dengan kesadaran dan tanggung jawab penuh untuk dapat dipergunakan sebagaimana mestinya bagi yang berkepentingan.</p>
+                <p>Aliran validitas status kependudukan ini sinkron secara langsung dengan Sistem Informasi Administrasi Kependudukan (SIAK) terluar. Demikian surat keterangan ini kami buat dengan penuh kesadaran dan tanggung jawab untuk dapat dipergunakan sebagaimana mestinya.</p>
             </div>
             
             <div class="signature-section">
@@ -2126,10 +2205,15 @@ fun printSuratAsPdf(
                     <tr>
                         <td class="sig-cell">
                             <div class="sig-desc">
-                                <strong>Sertifikasi Elektronik Resmi:</strong><br>
-                                Surat ini diterbitkan dengan TTE tersertifikasi BSrE Kabupaten Rembang secara aman.<br>
-                                Tautan Verifikasi:<br>
-                                <span style="font-family: monospace; font-size: 8px; color: #1565c0; word-break: break-all;">${item.qrVerificationUrl}</span>
+                                <strong>Dokumen TTE Resmi Aktif:</strong><br>
+                                Surat keterangan diterbitkan melalui sinkronisasi SIAK Dindukcapil Rembang, terverifikasi aman menggunakan sertifikat tanda tangan elektronik aktif dari BSrE.<br>
+                                <div style="display: flex; gap: 8px; margin-top: 8px; align-items: center;">
+                                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${java.net.URLEncoder.encode(item.qrVerificationUrl, "UTF-8")}" style="width: 64px; height: 64px; background: white; border: 1px solid #ccc; padding: 2px;" alt="QR Verification" />
+                                    <div>
+                                        Tautan portal verifikasi resmi:<br>
+                                        <a href="${item.qrVerificationUrl}" style="font-family: monospace; font-size: 7.5px; color: #1565c0; text-decoration: underline; word-break: break-all;">${item.qrVerificationUrl}</a>
+                                    </div>
+                                </div>
                             </div>
                         </td>
                         <td class="sig-cell sig-right">
@@ -2138,7 +2222,10 @@ fun printSuratAsPdf(
                                 Kepala Desa ${settings.namaDesa}
                             </div>
                             
-                            <div class="tte-badge">TTE AKTIF BSrE</div>
+                            <div class="tte-badge-container">
+                                <div class="tte-badge">Tandatangan Elektronik</div>
+                                <div class="tte-sub">BSrE BSSN Tersertifikasi</div>
+                            </div>
                             
                             <div class="sig-name">${item.pejabatTtd}</div>
                         </td>
