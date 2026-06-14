@@ -29,6 +29,9 @@ jobs:
           echo "GEMINI_API_KEY=mock-key-for-ci" > .env
         fi
         echo "sdk.dir=$ANDROID_HOME" > local.properties
+        if [ -f debug.keystore.base64 ]; then
+          base64 -d debug.keystore.base64 > debug.keystore
+        fi
 
     - name: Grant execute permission and regenerate wrapper
       run: |
