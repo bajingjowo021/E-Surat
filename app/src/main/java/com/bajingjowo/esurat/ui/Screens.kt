@@ -24,6 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -1364,6 +1365,9 @@ fun DraftKkScreen(viewModel: VillageViewModel) {
 @Composable
 fun HistoryLettersScreen(viewModel: VillageViewModel) {
     val history by viewModel.historyState.collectAsState()
+    val settings by viewModel.settingsState.collectAsState()
+    val villagers by viewModel.villagersState.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
     var selectedSuratForVerification by remember { mutableStateOf<SuratHistory?>(null) }
 
     Column(
@@ -1437,14 +1441,34 @@ fun HistoryLettersScreen(viewModel: VillageViewModel) {
                             
                             Spacer(modifier = Modifier.height(10.dp))
                             
-                            Button(
-                                onClick = { selectedSuratForVerification = item },
-                                modifier = Modifier.fillMaxWidth().testTag("scan_verify_${item.id}"),
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Icon(Icons.Default.Check, contentDescription = "View Verification Screen")
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Simulasikan Verifikasi Elektronik (QR)")
+                                Button(
+                                    onClick = { selectedSuratForVerification = item },
+                                    modifier = Modifier.weight(1.1f).testTag("scan_verify_${item.id}"),
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
+                                ) {
+                                    Icon(Icons.Default.Check, contentDescription = "View Verification Screen", modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Verifikasi QR", fontSize = 11.sp, maxLines = 1)
+                                }
+                                
+                                Button(
+                                    onClick = {
+                                        val resident = villagers.find { it.nik == item.nik }
+                                        printSuratAsPdf(context, item, resident, settings)
+                                    },
+                                    modifier = Modifier.weight(0.9f).testTag("print_pdf_${item.id}"),
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
+                                ) {
+                                    Icon(Icons.Default.Send, contentDescription = "Print PDF", modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Cetak PDF", fontSize = 11.sp, maxLines = 1)
+                                }
                             }
                         }
                     }
@@ -1582,6 +1606,7 @@ fun SettingsScreen(viewModel: VillageViewModel) {
     var kab by remember { mutableStateOf("") }
     var pos by remember { mutableStateOf("") }
     var alamat by remember { mutableStateOf("") }
+    var logoBase64 by remember { mutableStateOf("") }
 
     // On-demand settings population
     LaunchedEffect(settings) {
@@ -1590,6 +1615,7 @@ fun SettingsScreen(viewModel: VillageViewModel) {
         kab = settings.kabupaten
         pos = settings.kodePos
         alamat = settings.alamat
+        logoBase64 = settings.logoUrl
     }
 
     var newOffName by remember { mutableStateOf("") }
@@ -1619,7 +1645,114 @@ fun SettingsScreen(viewModel: VillageViewModel) {
 
         // Section 1: Kop Settings
         item {
-            Text("Pengaturan Kop Surat Desa", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Text("Pengaturan Kop Surat Desa & Logo", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Spacer(modifier = Modifier.height(12.dp))
+
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val imagePickerLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+                contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+            ) { uri: android.net.Uri? ->
+                if (uri != null) {
+                    try {
+                        val inputStream = context.contentResolver.openInputStream(uri)
+                        if (inputStream != null) {
+                            val bytes = inputStream.readBytes()
+                            inputStream.close()
+                            val base64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+                            logoBase64 = base64
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp)
+            ) {
+                val logoBitmap = remember(logoBase64) {
+                    if (logoBase64.isNotEmpty()) {
+                        try {
+                            val decodedBytes = android.util.Base64.decode(logoBase64, android.util.Base64.NO_WRAP)
+                            android.graphics.BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)
+                        } catch (e: Exception) {
+                            null
+                        }
+                    } else {
+                        null
+                    }
+                }
+
+                if (logoBitmap != null) {
+                    androidx.compose.foundation.Image(
+                        bitmap = logoBitmap.asImageBitmap(),
+                        contentDescription = "Logo Desa",
+                        contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                        modifier = Modifier
+                            .size(72.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .border(1.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
+                            .background(Color.White)
+                            .padding(4.dp)
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(72.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+                            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), RoundedCornerShape(8.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Send,
+                            contentDescription = "No Logo",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                }
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = "Logo Resmi Desa (.jpg / .png)",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = if (logoBase64.isNotEmpty()) "Logo kustom aktif" else "Menggunakan logo default",
+                        fontSize = 11.sp,
+                        color = Color.Gray
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = { imagePickerLauncher.launch("image/*") },
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                            modifier = Modifier.testTag("upload_logo_btn"),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                        ) {
+                            Text("Pilih Logo", fontSize = 11.sp)
+                        }
+                        if (logoBase64.isNotEmpty()) {
+                            OutlinedButton(
+                                onClick = { logoBase64 = "" },
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                modifier = Modifier.testTag("reset_logo_btn")
+                            ) {
+                                Text("Hapus", fontSize = 11.sp, color = MaterialTheme.colorScheme.error)
+                            }
+                        }
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
 
             OutlinedTextField(
@@ -1674,7 +1807,8 @@ fun SettingsScreen(viewModel: VillageViewModel) {
                             kecamatan = kec,
                             kabupaten = kab,
                             alamat = alamat,
-                            kodePos = pos
+                            kodePos = pos,
+                            logoUrl = logoBase64
                         )
                     )
                 },
@@ -1856,4 +1990,176 @@ fun SyncIndicatorOverlay(
             }
         }
     }
+}
+
+// PDF Print helper function utilizing native Android WebView HTML Print adapter
+fun printSuratAsPdf(
+    context: android.content.Context,
+    item: SuratHistory,
+    villager: Villager?,
+    settings: com.bajingjowo.esurat.data.VillageSettings
+) {
+    val logoHtml = if (settings.logoUrl.isNotEmpty()) {
+        """<img src="data:image/png;base64,${settings.logoUrl}" style="max-height: 80px; max-width: 80px; object-fit: contain;" />"""
+    } else {
+        """
+        <svg viewBox="0 0 100 100" style="width: 80px; height: 80px;">
+            <circle cx="50" cy="50" r="45" fill="none" stroke="#000" stroke-width="3" />
+            <circle cx="50" cy="50" r="40" fill="none" stroke="#000" stroke-width="1" stroke-dasharray="3,3" />
+            <path d="M50 15 L80 40 L50 90 L20 40 Z" fill="none" stroke="#000" stroke-width="2.5" />
+            <path d="M50 30 L65 42 L50 72 L35 42 Z" fill="#000" />
+            <text x="50" y="58" font-family="'Times New Roman', serif" font-size="9" font-weight="bold" text-anchor="middle" fill="#fff">DESA</text>
+        </svg>
+        """.trimIndent()
+    }
+
+    val nama = villager?.namaLengkap ?: item.namaPemohon
+    val nik = villager?.nik ?: item.nik
+    val noKk = villager?.noKk ?: "-"
+    val gender = villager?.jenisKelamin ?: "-"
+    val ttl = if (villager != null) "${villager.tempatLahir}, ${villager.tanggalLahir}" else "-"
+    val agama = villager?.agama ?: "-"
+    val status = villager?.statusPerkawinan ?: "-"
+    val pekerjaan = villager?.pekerjaan ?: "-"
+    val alamatPemohon = villager?.alamat ?: "Desa ${settings.namaDesa}"
+    
+    val tambahanKeterangan = if (item.isiSuratJson.isNotEmpty()) {
+        "Menerangkan bahwa yang bersangkutan berkelakuan baik, aktif dalam kegiatan kemasyarakatan, serta memenuhi kriteria administratif untuk keperluan: <strong>${item.isiSuratJson}</strong>."
+    } else {
+        "Menerangkan bahwa yang bersangkutan adalah warga Desa resmi yang berkelakuan baik serta teregistrasi dalam data tertib sipil desa untuk dapat dipergunakan sebagaimana mestinya."
+    }
+
+    val htmlContent = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <style>
+                body { font-family: 'Times New Roman', Times, serif; margin: 40px; color: #000; line-height: 1.6; }
+                .kop-table { width: 100%; border-collapse: collapse; margin-bottom: 5px; }
+                .kop-logo { width: 95px; text-align: left; vertical-align: middle; }
+                .kop-text { text-align: center; vertical-align: middle; padding-right: 40px; }
+                .kop-text h2 { margin: 0; font-size: 15px; font-weight: bold; text-transform: uppercase; }
+                .kop-text h1 { margin: 2px 0; font-size: 20px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
+                .kop-text p { margin: 2px 0; font-size: 11px; }
+                .line-double { border-top: 4px double #000; margin-top: 10px; margin-bottom: 25px; height: 0; }
+                .title { text-align: center; margin-bottom: 30px; }
+                .title h3 { margin: 0; font-size: 16px; font-weight: bold; text-decoration: underline; text-transform: uppercase; letter-spacing: 0.5px; }
+                .title p { margin: 4px 0; font-size: 12px; font-family: 'Courier New', Courier, monospace; font-weight: bold; }
+                .content { font-size: 14px; text-align: justify; }
+                .content p { margin-bottom: 12px; text-indent: 40.0px; }
+                .details-table { width: 90%; margin: 20px auto; border-collapse: collapse; font-size: 14px; }
+                .details-table td { padding: 5px 8px; vertical-align: top; }
+                .details-table td.label { width: 35%; }
+                .signature-section { width: 100%; margin-top: 45px; font-size: 14px; }
+                .sig-table { width: 100%; border-collapse: collapse; }
+                .sig-cell { width: 50%; vertical-align: top; }
+                .sig-right { text-align: center; }
+                .sig-name { font-weight: bold; text-decoration: underline; margin-top: 5px; text-transform: uppercase; }
+                .sig-title { margin-bottom: 10px; line-height: 1.3; }
+                .tte-badge { display: inline-block; padding: 5px 10px; border: 2px solid #2e7d32; color: #2e7d32; font-size: 9px; font-weight: bold; margin: 12px auto; text-transform: uppercase; letter-spacing: 0.5px; border-radius: 2px; }
+                .sig-desc { font-size: 9px; color: #555; text-align: left; max-width: 210px; border: 1px dashed #bbb; padding: 8px; border-radius: 4px; background: #fafafa; line-height: 1.4; }
+            </style>
+        </head>
+        <body>
+            <table class="kop-table">
+                <tr>
+                    <td class="kop-logo">
+                        $logoHtml
+                    </td>
+                    <td class="kop-text">
+                        <h2>PEMERINTAH KABUPATEN ${settings.kabupaten.uppercase()}</h2>
+                        <h2>KECAMATAN ${settings.kecamatan.uppercase()}</h2>
+                        <h1>KANTOR KEPALA DESA ${settings.namaDesa.uppercase()}</h1>
+                        <p>Alamat: ${settings.alamat} • Kode Pos: ${settings.kodePos}</p>
+                    </td>
+                </tr>
+            </table>
+            <div class="line-double"></div>
+            
+            <div class="title">
+                <h3>SURAT KETERANGAN ${item.jenisSurat.uppercase()}</h3>
+                <p>Nomor: ${item.nomorSurat}</p>
+            </div>
+            
+            <div class="content">
+                <p>Yang bertanda tangan di bawah ini, Kepala Desa ${settings.namaDesa}, Kecamatan ${settings.kecamatan}, Kabupaten ${settings.kabupaten}, Provinsi ${settings.provinsi}, menerangkan dengan sebenarnya bahwa warga kami:</p>
+                
+                <table class="details-table">
+                    <tr>
+                        <td class="label">Nama Lengkap</td>
+                        <td>: <strong>$nama</strong></td>
+                    </tr>
+                    <tr>
+                        <td class="label">N.I.K / No. KK</td>
+                        <td>: $nik / $noKk</td>
+                    </tr>
+                    <tr>
+                        <td class="label">Jenis Kelamin</td>
+                        <td>: $gender</td>
+                    </tr>
+                    <tr>
+                        <td class="label">Tempat, Tanggal Lahir</td>
+                        <td>: $ttl</td>
+                    </tr>
+                    <tr>
+                        <td class="label">Agama / Status Sipil</td>
+                        <td>: $agama / $status</td>
+                    </tr>
+                    <tr>
+                        <td class="label">Pekerjaan</td>
+                        <td>: $pekerjaan</td>
+                    </tr>
+                    <tr>
+                        <td class="label">Alamat Lengkap</td>
+                        <td>: $alamatPemohon</td>
+                    </tr>
+                </table>
+                
+                <p>$tambahanKeterangan</p>
+                
+                <p>Demikian surat keterangan ini kami buat dengan kesadaran dan tanggung jawab penuh untuk dapat dipergunakan sebagaimana mestinya bagi yang berkepentingan.</p>
+            </div>
+            
+            <div class="signature-section">
+                <table class="sig-table">
+                    <tr>
+                        <td class="sig-cell">
+                            <div class="sig-desc">
+                                <strong>Sertifikasi Elektronik Resmi:</strong><br>
+                                Surat ini diterbitkan dengan TTE tersertifikasi BSrE Kabupaten Rembang secara aman.<br>
+                                Tautan Verifikasi:<br>
+                                <span style="font-family: monospace; font-size: 8px; color: #1565c0; word-break: break-all;">${item.qrVerificationUrl}</span>
+                            </div>
+                        </td>
+                        <td class="sig-cell sig-right">
+                            <div class="sig-title">
+                                ${settings.namaDesa}, ${item.tanggalTerbit}<br>
+                                Kepala Desa ${settings.namaDesa}
+                            </div>
+                            
+                            <div class="tte-badge">TTE AKTIF BSrE</div>
+                            
+                            <div class="sig-name">${item.pejabatTtd}</div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </body>
+        </html>
+    """.trimIndent()
+
+    val webView = android.webkit.WebView(context)
+    webView.webViewClient = object : android.webkit.WebViewClient() {
+        override fun onPageFinished(view: android.webkit.WebView?, url: String?) {
+            val printManager = context.getSystemService(android.content.Context.PRINT_SERVICE) as android.print.PrintManager
+            val jobName = "eSuratDesa_${item.nomorSurat.replace('/', '_')}"
+            val printAdapter = webView.createPrintDocumentAdapter(jobName)
+            val printAttributes = android.print.PrintAttributes.Builder()
+                .setMediaSize(android.print.PrintAttributes.MediaSize.ISO_A4)
+                .build()
+            printManager.print(jobName, printAdapter, printAttributes)
+        }
+    }
+    webView.loadDataWithBaseURL(null, htmlContent, "text/html", "UTF-8", null)
 }
