@@ -2858,175 +2858,295 @@ fun printKkAsPdf(
         <!DOCTYPE html>
         <html>
         <head>
-            <meta charset="utf-8">
+            <meta charset='utf-8'>
             <style>
                 @page {
                     size: A4 landscape;
-                    margin: 15mm 15mm 15mm 15mm;
+                    margin: 8mm 12mm 8mm 12mm;
                 }
                 body {
-                    font-family: Arial, sans-serif;
+                    font-family: 'Arial', 'Helvetica', sans-serif;
                     margin: 0;
+                    padding: 0;
                     color: #000;
-                    background-color: #fff;
-                    line-height: 1.25;
+                    background-color: #f7f9fa;
+                    line-height: 1.2;
+                    /* Watermarks: Repeat DUKCAPIL text pattern, and single clean Garuda Centered seal */
+                    background-image: 
+                        url("data:image/svg+xml;utf8,<svg width='200' height='120' viewBox='0 0 200 120' xmlns='http://www.w3.org/2000/svg'><text x='50%' y='50%' font-size='10' fill='rgba(33, 150, 243, 0.05)' font-weight='800' font-family='sans-serif' text-anchor='middle' transform='rotate(-28 100 60)'>DUKCAPIL</text></svg>"), 
+                        url("data:image/svg+xml;utf8,<svg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'><path d='M 50,15 C 49,15 48,12 50,8 C 52,12 51,15 50,15 Z' fill='rgba(13, 71, 161, 0.03)'/><path d='M 50,14 C 47,15 45,19 46,24 C 48,22 49,21 50,21 C 51,21 52,22 54,24 C 55,19 53,15 50,14 Z' fill='rgba(13, 71, 161, 0.03)'/><path d='M 46,24 C 45,26 44,28 44,30 C 47,28 49,27 50,27 C 51,27 53,28 56,30 C 56,28 55,26 54,24 Z' fill='rgba(13, 71, 161, 0.03)'/><path d='M 46,24 C 44,23 43,24 42,26 C 44,27 45,26 46,24 Z' fill='rgba(13, 71, 161, 0.03)'/><path d='M 50,21 C 41,25 40,38 41,50 C 44,52 47,53 50,53 C 53,53 56,52 59,50 C 60,38 59,25 50,21 Z' fill='rgba(13, 71, 161, 0.03)'/><path d='M 41,35 C 33,26 15,28 5,45 C 10,48 18,48 24,45 C 18,52 11,56 8,62 C 14,62 25,58 31,52 C 24,62 18,70 16,80 C 24,76 34,68 38,58 C 39,52 40,43 41,35 Z' fill='rgba(13, 71, 161, 0.03)'/><path d='M 59,35 C 67,26 85,28 95,45 C 90,48 82,48 76,45 C 82,52 89,56 92,62 C 86,62 75,58 69,52 C 76,62 82,70 84,80 C 76,76 66,68 62,58 C 61,52 60,43 59,35 Z' fill='rgba(13, 71, 161, 0.03)'/><path d='M 43,62 C 40,75 35,85 30,92 C 34,92 41,85 43,80 C 43,85 45,90 44,95 C 47,91 49,85 49,80 C 49,85 51,91 54,95 C 53,90 55,85 55,80 C 57,85 64,92 68,92 C 63,85 58,75 55,62 Z' fill='rgba(13, 71, 161, 0.03)'/><path d='M 46,55 C 43,58 40,62 39,66 C 42,65 44,63 45,61 C 44,65 43,70 41,74 C 45,71 47,67 48,63 C 48,68 49,72 50,75 C 51,72 52,68 52,63 C 53,67 55,71 59,74 C 57,70 56,65 55,61 C 56,63 58,65 61,66 Q 60,62 57,58 Q 54,55 54,55 Z' fill='rgba(13, 71, 161, 0.03)'/><path d='M 44,38 Q 44,48 50,51 Q 56,48 56,38 Z' fill='none' stroke='rgba(13, 71, 161, 0.04)' stroke-width='1.5'/><line x1='50' y1='38' x2='50' y2='51' stroke='rgba(13, 71, 161, 0.04)' stroke-width='1'/><line x1='44' y1='44.5' x2='56' y2='44.5' stroke='rgba(13, 71, 161, 0.04)' stroke-width='1'/><polygon points='50,42 51,44 53,44 51.5,45 52,47 50,45.8 48,47 48.5,45 47,44 49,44' fill='rgba(13, 71, 161, 0.04)'/><path d='M 38,58 Q 50,62 62,58' fill='none' stroke='rgba(13, 71, 161, 0.04)' stroke-width='3'/><path d='M 32,58 H 68 V 61 H 32 Z' fill='none' stroke='rgba(13, 71, 161, 0.04)' stroke-width='1'/><text x='50' y='60.2' font-size='2.5' font-weight='900' text-anchor='middle' fill='rgba(13, 71, 161, 0.04)' font-family='sans-serif'>BHINNEKA TUNGGAL IKA</text></svg>");
+                    background-repeat: repeat, no-repeat;
+                    background-position: center, center;
+                    background-size: auto, 340px 340px;
                 }
-                .watermark {
-                    position: fixed;
-                    top: 50%;
-                    left: 50%;
-                    transform: translate(-50%, -50%) rotate(-25deg);
-                    font-size: 85px;
-                    font-weight: 900;
-                    color: rgba(220, 0, 0, 0.14);
-                    font-family: Arial, sans-serif;
-                    letter-spacing: 12px;
-                    z-index: 9999;
-                    pointer-events: none;
-                    white-space: nowrap;
-                    text-transform: uppercase;
+                
+                /* Layout Sections */
+                .top-bar {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    border-bottom: 2px solid #000;
+                    padding-bottom: 5px;
+                    margin-bottom: 8px;
                 }
-                .watermark-sub {
-                    font-size: 30px;
-                    display: block;
-                    letter-spacing: 4px;
+                .logo-left {
+                    width: 60px;
+                    height: 60px;
+                }
+                .title-center {
                     text-align: center;
-                    margin-top: 10px;
+                    flex-grow: 1;
                 }
-                .kk-header {
-                    text-align: center;
-                    margin-bottom: 12px;
-                }
-                .kk-header h1 {
+                .title-center h1 {
                     margin: 0;
-                    font-size: 20px;
-                    font-weight: bold;
-                    letter-spacing: 1.5px;
-                    text-transform: uppercase;
-                    color: #0d47a1;
+                    font-size: 21px;
+                    font-weight: 900;
+                    letter-spacing: 2px;
+                    color: #000;
                 }
-                .kk-header h2 {
-                    margin: 3px 0 0 0;
-                    font-size: 14px;
+                .title-center h2 {
+                    margin: 2px 0 0 0;
+                    font-size: 15px;
                     font-weight: bold;
-                    font-family: monospace;
                     letter-spacing: 1px;
                 }
-                .meta-table {
-                    width: 100%;
-                    border-collapse: collapse;
-                    font-size: 10.5px;
-                    margin-bottom: 10px;
+                .code-right {
+                    width: 140px;
+                    font-size: 8px;
+                    font-weight: bold;
+                    text-align: right;
+                    font-family: monospace;
+                    text-transform: uppercase;
                 }
-                .meta-table td {
-                    padding: 3px 0;
+                .code-box {
+                    border: 1px solid #000;
+                    padding: 3px 6px;
+                    display: inline-block;
+                    background: #fff;
+                    letter-spacing: 0.5px;
                 }
-                .kk-table {
+                
+                /* Identity Section */
+                .identity-table {
                     width: 100%;
                     border-collapse: collapse;
                     font-size: 9.5px;
-                    margin-bottom: 12px;
+                    margin-bottom: 8px;
+                    font-weight: bold;
                 }
-                .kk-table th {
-                    border: 1px solid #000;
-                    background-color: #e3f2fd;
+                .identity-table td {
+                    padding: 1.5px 0;
+                    vertical-align: top;
+                }
+                .col-left {
+                    width: 18%;
+                }
+                .col-middle-left {
+                    width: 32%;
+                }
+                .col-right {
+                    width: 18%;
+                }
+                .col-middle-right {
+                    width: 32%;
+                }
+                
+                /* Tables Formatting */
+                .data-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    font-size: 8.5px;
+                    margin-bottom: 8px;
+                    background-color: rgba(255, 255, 255, 0.85);
+                }
+                .data-table th {
+                    border: 1.2px solid #000;
+                    background-color: #ededed;
                     color: #000;
                     font-weight: bold;
                     text-align: center;
-                    padding: 4px 2px;
-                    font-size: 9px;
+                    padding: 3px;
+                    text-transform: uppercase;
+                    vertical-align: middle;
+                    font-size: 8px;
                 }
-                .kk-table td {
+                .data-table td {
                     border: 1px solid #000;
-                    padding: 4px;
+                    padding: 3px 4px;
                     vertical-align: middle;
                 }
-                .col-num-row th {
-                    background-color: #eceff1;
-                    font-size: 7.5px;
-                    padding: 1px;
+                .row-num-indicator th {
+                    background-color: #f7f7f7 !important;
+                    font-size: 7px !important;
+                    font-weight: normal !important;
+                    padding: 1px !important;
+                    color: #444 !important;
                 }
-                .footer-section {
-                    margin-top: 15px;
-                    width: 100%;
-                    page-break-inside: avoid;
-                }
-                .footer-table {
-                    width: 100%;
-                    border-collapse: collapse;
-                    font-size: 10.5px;
-                }
-                .footer-table td {
-                    vertical-align: top;
-                }
-                .sig-box {
+                .text-center {
                     text-align: center;
                 }
+                .text-strong {
+                    font-weight: bold;
+                    text-transform: uppercase;
+                }
+                .monospace {
+                    font-family: 'Courier New', Courier, monospace;
+                    font-weight: bold;
+                    letter-spacing: 0.5px;
+                }
+                
+                /* Bottom Footer Panel */
+                .footer-box {
+                    width: 100%;
+                    margin-top: 8px;
+                    page-break-inside: avoid;
+                }
+                .footer-columns {
+                    width: 100%;
+                    border-collapse: collapse;
+                }
+                .footer-columns td {
+                    vertical-align: top;
+                }
+                .notices-panel {
+                    width: 40%;
+                    font-size: 7.5px;
+                }
+                .notices-content {
+                    border: 1px solid #777;
+                    padding: 5px;
+                    background: rgba(255, 255, 255, 0.85);
+                    line-height: 1.3;
+                    border-radius: 3px;
+                }
+                .sig-box-holder {
+                    width: 30%;
+                    text-align: center;
+                    font-size: 9px;
+                }
                 .sig-title {
-                    font-weight: normal;
-                    margin-bottom: 45px;
+                    margin-bottom: 40px;
+                    text-transform: uppercase;
+                    line-height: 1.3;
                 }
                 .sig-name {
                     font-weight: bold;
                     text-decoration: underline;
                     text-transform: uppercase;
+                    font-size: 9.5px;
+                }
+                .sig-subtext {
+                    font-size: 8px;
+                    color: #333;
+                    margin-top: 2px;
+                }
+                .tte-panel {
+                    width: 30%;
+                    text-align: center;
+                    font-size: 9px;
+                }
+                .tte-border {
+                    border: 1px solid #000;
+                    background: rgba(255, 255, 255, 0.95);
+                    padding: 5px;
+                    display: inline-block;
+                    border-radius: 4px;
+                    text-align: center;
+                }
+                
+                /* Legal Footnote */
+                .legal-footnote {
+                    margin-top: 6px;
+                    border: 1px solid #000;
+                    padding: 4px 10px;
+                    font-size: 7.5px;
+                    text-align: center;
+                    background-color: rgba(245, 245, 245, 0.95);
+                    line-height: 1.3;
+                    border-radius: 2px;
+                    page-break-inside: avoid;
+                    font-weight: bold;
                 }
             </style>
         </head>
         <body>
-            <div class="watermark">
-                DRAFT KK DIGITAL
-                <span class="watermark-sub">BELUM DISETUJUI DUKCAPIL</span>
+            <!-- Header elements with logo, title and code -->
+            <div class='top-bar'>
+                <div class='logo-left'>
+                    <svg viewBox='0 0 100 100' width='100%' height='100%'>
+                        <path d='M 50,15 C 49,15 48,12 50,8 C 52,12 51,15 50,15 Z' fill='#000'/>
+                        <path d='M 50,14 C 47,15 45,19 46,24 C 48,22 49,21 50,21 C 51,21 52,22 54,24 C 55,19 53,15 50,14 Z' fill='#000'/>
+                        <path d='M 46,24 C 45,26 44,28 44,30 C 47,28 49,27 50,27 C 51,27 53,28 56,30 C 56,28 55,26 54,24 Z' fill='#000'/>
+                        <path d='M 46,24 C 44,23 43,24 42,26 C 44,27 45,26 46,24 Z' fill='#000'/>
+                        <path d='M 50,21 C 41,25 40,38 41,50 C 44,52 47,53 50,53 C 53,53 56,52 59,50 C 60,38 59,25 50,21 Z' fill='#000'/>
+                        <path d='M 41,35 C 33,26 15,28 5,45 C 10,48 18,48 24,45 C 18,52 11,56 8,62 C 14,62 25,58 31,52 C 24,62 18,70 16,80 C 24,76 34,68 38,58 C 39,52 40,43 41,35 Z' fill='#000'/>
+                        <path d='M 59,35 C 67,26 85,28 95,45 C 90,48 82,48 76,45 C 82,52 89,56 92,62 C 86,62 75,58 69,52 C 76,62 82,70 84,80 C 76,76 66,68 62,58 C 61,52 60,43 59,35 Z' fill='#000'/>
+                        <path d='M 43,62 C 40,75 35,85 30,92 C 34,92 41,85 43,80 C 43,85 45,90 44,95 C 47,91 49,85 49,80 C 49,85 51,91 54,95 C 53,90 55,85 55,80 C 57,85 64,92 68,92 C 63,85 58,75 55,62 Z' fill='#000'/>
+                        <path d='M 46,55 C 43,58 40,62 39,66 C 42,65 44,63 45,61 C 44,65 43,70 41,74 C 45,71 47,67 48,63 C 48,68 49,72 50,75 C 51,72 52,68 52,63 C 53,67 55,71 59,74 C 57,70 56,65 55,61 C 56,63 58,65 61,66 Q 60,62 57,58 Q 54,55 54,55 Z' fill='#000'/>
+                        <path d='M 44,38 Q 44,48 50,51 Q 56,48 56,38 Z' fill='#fff' stroke='#000' stroke-width='1.5'/>
+                        <line x1='50' y1='38' x2='50' y2='51' stroke='#000' stroke-width='1'/>
+                        <line x1='44' y1='44.5' x2='56' y2='44.5' stroke='#000' stroke-width='1'/>
+                        <polygon points='50,42 51,44 53,44 51.5,45 52,47 50,45.8 48,47 48.5,45 47,44 49,44' fill='#000'/>
+                        <path d='M 38,58 Q 50,62 62,58' fill='none' stroke='#000' stroke-width='3'/>
+                        <path d='M 32,58 H 68 V 61 H 32 Z' fill='#fff' stroke='#000' stroke-width='1'/>
+                        <text x='50' y='60.2' font-size='2.5' font-weight='900' text-anchor='middle' fill='#000' font-family='sans-serif'>BHINNEKA TUNGGAL IKA</text>
+                    </svg>
+                </div>
+                
+                <div class='title-center'>
+                    <h1>KARTU KELUARGA</h1>
+                    <h2>No. $kkNo</h2>
+                </div>
+                
+                <div class='code-right'>
+                    <div class='code-box'>FORMULIR F-1.01</div>
+                </div>
             </div>
             
-            <div class="kk-header">
-                <h1>REPUBLIK INDONESIA</h1>
-                <h1>KARTU KELUARGA</h1>
-                <h2>No. $kkNo</h2>
-            </div>
-            
-            <table class="meta-table">
+            <!-- Dual-column Identity Section -->
+            <table class='identity-table'>
                 <tr>
-                    <td style="width: 15%;">Nama Kepala Keluarga</td>
-                    <td style="width: 35%;">: <strong>${headOfFamily?.namaLengkap?.uppercase() ?: "-"}</strong></td>
-                    <td style="width: 15%;">Kecamatan</td>
-                    <td style="width: 35%;">: ${settings.kecamatan.uppercase()}</td>
+                    <td class='col-left'>Nama Kepala Keluarga</td>
+                    <td class='col-middle-left'>: ${headOfFamily?.namaLengkap?.uppercase() ?: "-"}</td>
+                    <td class='col-right'>Kecamatan</td>
+                    <td class='col-middle-right'>: ${settings.kecamatan.uppercase()}</td>
                 </tr>
                 <tr>
-                    <td>Alamat</td>
-                    <td>: ${settings.alamat}</td>
-                    <td>Kabupaten/Kota</td>
-                    <td>: REMBANG</td>
+                    <td class='col-left'>Alamat</td>
+                    <td class='col-middle-left'>: ${settings.alamat.uppercase()}</td>
+                    <td class='col-right'>Kabupaten/Kota</td>
+                    <td class='col-middle-right'>: ${settings.kabupaten.uppercase()}</td>
                 </tr>
                 <tr>
-                    <td>RT/RW</td>
-                    <td>: ${firstMember?.rt ?: "01"}/${firstMember?.rw ?: "01"}</td>
-                    <td>Kode Pos</td>
-                    <td>: ${settings.kodePos}</td>
+                    <td class='col-left'>RT/RW</td>
+                    <td class='col-middle-left'>: ${firstMember?.rt ?: "01"}/${firstMember?.rw ?: "01"}</td>
+                    <td class='col-right'>Kode Pos</td>
+                    <td class='col-middle-right'>: ${settings.kodePos}</td>
                 </tr>
                 <tr>
-                    <td>Kelurahan/Desa</td>
-                    <td>: ${settings.namaDesa.uppercase()}</td>
-                    <td>Provinsi</td>
-                    <td>: JAWA TENGAH</td>
+                    <td class='col-left'>Kelurahan/Desa</td>
+                    <td class='col-middle-left'>: ${settings.namaDesa.uppercase()}</td>
+                    <td class='col-right'>Provinsi</td>
+                    <td class='col-middle-right'>: ${settings.provinsi.uppercase()}</td>
                 </tr>
             </table>
 
-            <table class="kk-table">
+            <!-- Table 1: Data Anggota Keluarga -->
+            <table class='data-table'>
                 <thead>
                     <tr>
-                        <th style="width: 3%;">No</th>
-                        <th style="width: 25%;">Nama Lengkap</th>
-                        <th style="width: 16%;">NIK</th>
-                        <th style="width: 8%;">Jenis Kelamin</th>
-                        <th style="width: 13%;">Tempat Lahir</th>
-                        <th style="width: 10%;">Tanggal Lahir</th>
-                        <th style="width: 8%;">Agama</th>
-                        <th style="width: 10%;">Pendidikan</th>
-                        <th style="width: 10%;">Jenis Pekerjaan</th>
+                        <th style='width: 3%;' rowspan='2'>No</th>
+                        <th style='width: 25%;'>Nama Lengkap</th>
+                        <th style='width: 15%;'>NIK</th>
+                        <th style='width: 8%;'>Jenis Kelamin</th>
+                        <th style='width: 12%;'>Tempat Lahir</th>
+                        <th style='width: 10%;'>Tanggal Lahir</th>
+                        <th style='width: 7%;'>Agama</th>
+                        <th style='width: 10%;'>Pendidikan Terakhir</th>
+                        <th style='width: 11%;'>Jenis Pekerjaan</th>
+                        <th style='width: 4%;'>Gol. Darah</th>
                     </tr>
-                    <tr class="col-num-row">
-                        <th></th>
+                    <tr class='row-num-indicator'>
                         <th>(1)</th>
                         <th>(2)</th>
                         <th>(3)</th>
@@ -3035,96 +3155,124 @@ fun printKkAsPdf(
                         <th>(6)</th>
                         <th>(7)</th>
                         <th>(8)</th>
+                        <th>(9)</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${members.mapIndexed { index, m -> """
                     <tr>
-                        <td style="text-align: center;">${index + 1}</td>
-                        <td><strong>${m.namaLengkap.uppercase()}</strong></td>
-                        <td style="text-align: center; font-family: monospace;">${m.nik}</td>
-                        <td style="text-align: center;">${m.jenisKelamin.uppercase()}</td>
-                        <td>${m.tempatLahir.uppercase()}</td>
-                        <td style="text-align: center;">${m.tanggalLahir}</td>
-                        <td style="text-align: center;">${m.agama.uppercase()}</td>
+                        <td class='text-center'>${index + 1}</td>
+                        <td class='text-strong'>${m.namaLengkap.uppercase()}</td>
+                        <td class='text-center monospace'>${m.nik}</td>
+                        <td class='text-center'>${m.jenisKelamin.uppercase()}</td>
+                        <td class='text-strong'>${m.tempatLahir.uppercase()}</td>
+                        <td class='text-center'>${m.tanggalLahir}</td>
+                        <td class='text-center'>${m.agama.uppercase()}</td>
                         <td>${m.pendidikan.uppercase()}</td>
                         <td>${m.pekerjaan.uppercase()}</td>
+                        <td class='text-center'>-</td>
                     </tr>
                     """ }.joinToString("")}
                 </tbody>
             </table>
 
-            <table class="kk-table">
+            <!-- Table 2: Status & Hubungan Keluarga -->
+            <table class='data-table'>
                 <thead>
                     <tr>
-                        <th style="width: 3%;">No</th>
-                        <th style="width: 18%;">Status Hubungan Keluarga</th>
-                        <th style="width: 14%;">Status Perkawinan</th>
-                        <th style="width: 12%;">Kewarganegaraan</th>
-                        <th style="width: 13%;">No. Paspor</th>
-                        <th style="width: 12%;">No. KITAP/KITAS</th>
-                        <th style="width: 14%;">Nama Ayah</th>
-                        <th style="width: 14%;">Nama Ibu</th>
+                        <th style='width: 3%;' rowspan='2'>No</th>
+                        <th style='width: 14%;'>Status Perkawinan</th>
+                        <th style='width: 12%;'>Tanggal Perkawinan</th>
+                        <th style='width: 16%;'>Status Hubungan Dlm Keluarga</th>
+                        <th style='width: 10%;'>Kewarganegaraan</th>
+                        <th style='width: 12%;'>No. Paspor</th>
+                        <th style='width: 11%;'>No. KITAP/KITAS</th>
+                        <th style='width: 11%;'>Nama Ayah</th>
+                        <th style='width: 11%;'>Nama Ibu</th>
                     </tr>
-                    <tr class="col-num-row">
-                        <th></th>
-                        <th>(9)</th>
+                    <tr class='row-num-indicator'>
                         <th>(10)</th>
                         <th>(11)</th>
                         <th>(12)</th>
                         <th>(13)</th>
                         <th>(14)</th>
                         <th>(15)</th>
+                        <th>(16)</th>
+                        <th>(17)</th>
                     </tr>
                 </thead>
                 <tbody>
                     ${members.mapIndexed { index, m -> """
                     <tr>
-                        <td style="text-align: center;">${index + 1}</td>
-                        <td style="text-align: center;">${m.hubunganKeluarga.uppercase()}</td>
-                        <td style="text-align: center;">${m.statusPerkawinan.uppercase()}</td>
-                        <td style="text-align: center;">${m.kewarganegaraan.uppercase()}</td>
-                        <td style="text-align: center;">-</td>
-                        <td style="text-align: center;">-</td>
-                        <td>${m.namaAyah.uppercase()}</td>
-                        <td>${m.namaIbu.uppercase()}</td>
+                        <td class='text-center'>${index + 1}</td>
+                        <td class='text-center'>${m.statusPerkawinan.uppercase()}</td>
+                        <td class='text-center'>-</td>
+                        <td class='text-center text-strong'>${m.hubunganKeluarga.uppercase()}</td>
+                        <td class='text-center'>${m.kewarganegaraan.uppercase()}</td>
+                        <td class='text-center'>-</td>
+                        <td class='text-center'>-</td>
+                        <td class='text-strong'>${m.namaAyah.uppercase()}</td>
+                        <td class='text-strong'>${m.namaIbu.uppercase()}</td>
                     </tr>
                     """ }.joinToString("")}
                 </tbody>
             </table>
 
-            <div class="footer-section">
-                <table class="footer-table">
+            <!-- Footer block with notices, signature & TTE -->
+            <div class='footer-box'>
+                <table class='footer-columns'>
                     <tr>
-                        <td style="width: 33%;">
-                            <div class="sig-box">
-                                KEPALA KELUARGA,<br><br><br><br><br>
-                                <span class="sig-name">${headOfFamily?.namaLengkap?.uppercase() ?: "-"}</span>
+                        <!-- Dukcapil Legal Instruction Notes -->
+                        <td class='notices-panel'>
+                            <div class='notices-content'>
+                                <strong>KETERANGAN RESMI DUKCAPIL:</strong><br>
+                                1. Kepala Keluarga wajib melaporkan setiap kejadian kependudukan (kelahiran, kematian, pernikahan, perceraian) atau perubahan data selambat-lambatnya dalam 14 hari.<br>
+                                2. Penduduk wajib memelihara keamanan Kartu Keluarga dan menghindari kerusakan fisik maupun manipulasi data kependudukan.<br>
+                                3. Lembar ini dicetak mandiri menggunakan format standardisasi kependudukan nasional dan bersertifikasi keabsahan digital.<br>
+                                4. Verifikasi dan keabsahan dokumen otentik dapat dilacak secara real-time dengan memindai kode QR penandatangan di sebelah kanan bawah.
                             </div>
                         </td>
-                        <td style="width: 34%; text-align: center; padding-top: 10px;">
-                            <div style="display: inline-block; border: 1px solid #777; padding: 6px; background: #fafafa; border-radius: 4px;">
-                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://rembangkab.go.id/kk-verify/$kkNo" style="width: 60px; height: 60px; display: block; margin: 0 auto 4px auto;" alt="Verification QR" />
-                                <span style="font-size: 7px; font-weight: bold; font-family: sans-serif; display: block; text-transform: uppercase;">VERIFIKASI SIAK OFFICIAL</span>
-                            </div>
+                        
+                        <!-- Kepala Keluarga Column -->
+                        <td class='sig-box-holder' style='vertical-align: bottom; padding-bottom: 5px;'>
+                            KEPALA KELUARGA,<br><br><br><br>
+                            <div class='sig-name'>${headOfFamily?.namaLengkap?.uppercase() ?: "-"}</div>
+                            <div class='sig-subtext'>Tanda tangan manual / Jempol</div>
                         </td>
-                        <td style="width: 33%;">
-                            <div class="sig-box">
-                                REMBANG, ${java.text.SimpleDateFormat("dd MMMM yyyy", java.util.Locale("id", "ID")).format(java.util.Date())}<br>
-                                KEPALA DINAS KEPENDUDUKAN DAN<br>
-                                PENCATATAN SIPIL KABUPATEN REMBANG<br><br>
-                                <div style="font-weight: bold; color: #1b5e20; font-size: 8px; border: 1.5px solid #1b5e20; padding: 2px 6px; display: inline-block; margin-bottom: 12px; background-color: #f1f8e9; border-radius: 3px;">TANDATANGAN ELEKTRONIK BSrE</div><br>
-                                <span class="sig-name">Drs. SUPARMIN, M.M.</span><br>
-                                <span style="font-size: 9px; color: #333;">NIP. 19680324 199303 1 005</span>
+                        
+                        <!-- Electronic Signatures TTE Column -->
+                        <td class='tte-panel'>
+                            <div style='line-height:1.3;'>
+                                ${settings.kabupaten.uppercase()}, ${java.text.SimpleDateFormat("dd MMMM yyyy", java.util.Locale("id", "ID")).format(java.util.Date())}<br>
+                                <strong>KEPALA DINAS KEPENDUDUKAN DAN</strong><br>
+                                <strong>PENCATATAN SIPIL KABUPATEN REMBANG</strong>
                             </div>
+                            
+                            <!-- Large verification QR Code and Electronic Signature sign -->
+                            <div style='margin: 4px auto 2px auto;'>
+                                <div class='tte-border'>
+                                    <div style='font-size: 7px; font-weight: bold; color: #1565c0; margin-bottom: 2px;'>DITANDATANGANI SECARA ELEKTRONIK</div>
+                                    <img src='https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://rembangkab.go.id/kk-verify/$kkNo&color=0d47a1' style='width: 65px; height: 65px; outline: 1px solid #ddd; padding: 2px; background: %23fff; display: inline-block;' alt='QR Verification' />
+                                    <div style='font-size: 6px; color: #666; margin-top: 2px; letter-spacing: 0.3px;'>Balai Sertifikasi Elektronik (BSrE) BSSN</div>
+                                </div>
+                            </div>
+                            
+                            <div class='sig-name'>Drs. SUPARMIN, M.M.</div>
+                            <div class='sig-subtext'>Pembina Utama Muda</div>
+                            <div class='sig-subtext'>NIP. 19680324 199303 1 005</div>
                         </td>
                     </tr>
                 </table>
             </div>
+
+            <!-- Centralized horizontal verification legal box -->
+            <div class='legal-footnote'>
+                Dokumen ini telah ditandatangani secara elektronik menggunakan sertifikat elektronik yang diterbitkan oleh Balai Sertifikasi Elektronik (BSrE), Badan Siber dan Sandi Negara. Berdasarkan Undang-Undang RI Nomor 11 Tahun 2008 tentang Informasi dan Transaksi Elektronik, lembaran cetak ini memiliki kekuatan pembuktian hukum yang sah sama seperti dokumen aslinya.
+            </div>
         </body>
         </html>
     """.trimIndent()
-
+ 
     val webView = android.webkit.WebView(context)
     webView.webViewClient = object : android.webkit.WebViewClient() {
         override fun onPageFinished(view: android.webkit.WebView?, url: String?) {
