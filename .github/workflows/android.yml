@@ -41,9 +41,14 @@ jobs:
     - name: Run Local JVM Unit Tests
       run: ./gradlew testDebugUnitTest
 
+    - name: Prepare APK for Distribution
+      run: |
+        mkdir -p build-artifacts
+        cp app/build/outputs/apk/debug/app-debug.apk build-artifacts/e-Surat.apk
+
     - name: Upload Ready-to-Use APK
       uses: actions/upload-artifact@v4
       with:
-        name: e-Surat-Desa-APK
-        path: app/build/outputs/apk/debug/app-debug.apk
+        name: e-Surat-APK
+        path: build-artifacts/e-Surat.apk
         if-no-files-found: error
